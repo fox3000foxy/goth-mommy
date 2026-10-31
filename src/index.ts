@@ -1,4 +1,4 @@
-export interface HyperParams { [key: string]: string | number | boolean | object | HyperParams; }
+export interface HyperParams { [key: string]: number | boolean }
 export type Population = HyperParams[];
 /** Un score PLUS GRAND = un individu MEILLEUR. */
 export type Score = number[];
@@ -27,6 +27,9 @@ export class GothMommy {
                 const scale = strength * Math.pow(10, -3 * Math.random());
                 copy[key] = (copy[key] as number) + (Math.random() - 0.5) * 2 * scale;
             }
+            if (typeof copy[key] === "boolean") {
+                if (Math.random() < 0.1) copy[key] = !copy[key];
+            }
         }
         return copy;
     }
@@ -53,7 +56,7 @@ export class GothMommy {
     }
 
     /** S'arrête quand le meilleur score brut atteint `threshold`, ou après `maxIterations`. */
-    * iterator(maxIterations: number = 1000, threshold: number = Infinity) {
+    *iterator(maxIterations: number = 1000, threshold: number = Infinity) {
         for (let i = 0; i < maxIterations; i++) {
             const scores = this.scoringFunction(this.population);
             const bestScore = Math.max(...scores);
