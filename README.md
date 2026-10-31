@@ -1,130 +1,80 @@
-# module-template
+# GothMommy
 
-Template de base pour publier rapidement un module TypeScript sur npm, avec une pile de qualité minimale (TypeScript + Biome + ESLint) et un pipeline GitHub Actions.
+Un petit algorithme génétique en TypeScript pour chercher de bons hyperparamètres. Tu fournis un point de départ et une fonction de score, GothMommy fait évoluer une population jusqu'à trouver mieux.
 
-Ce repository n'est pas un produit fini. Il sert de point de depart a cloner/copie pour un nouveau package.
+Aucune dépendance. Fonctionne avec Bun, ou avec Node 18+ via `tsx`.
 
-## Ce que fait ce template
+## Démarrage rapide
 
-- Build TypeScript vers `dist/`
-- Generation des declarations `.d.ts`
-- Verification statique (typecheck + lint + format)
-- Publication npm via tag Git (`v*`) dans GitHub Actions
-- Script local pour creer le tag/release et declencher la publication
+```typescript
+import { type HyperParams, type Population, type ScoringFunction, GothMommy } from ".";
 
-## Structure actuelle
+const hyperparams: HyperParams = { x: 5 };
 
-```text
-.
-├─ .github/
-│  └─ workflows/
-│     ├─ publish.yml
-│     ├─ test-battery.yml
-│     └─ create-pull-request.yml
-├─ scripts/
-│  └─ publish-package.sh
-├─ package.json
-├─ tsconfig.json
-├─ biome.json
-└─ eslint.config.ts
+// Trouver x tel que x² + 2x + 1 = 0 (racine double en x = -1)
+const fx = (x: number) => x * x + 2 * x + 1;
+
+// Plus grand = meilleur : vaut 1 quand fx(x) = 0, tend vers 0 sinon
+const scoringFunction: ScoringFunction = (population: Population) =>
+    population.map(ind => 1 / (1 + Math.abs(fx(ind.x as number))));
+
+const gothMommy = new GothMommy(hyperparams, 20, scoringFunction);
+
+for (const state of gothMommy.iterator(2000, 1 / (1 + 1e-8))) {
+    console.log(state.iteration, state.bestScore, state.best);
+}
 ```
 
-## Comment le template fonctionne
-
-### 1) Build TypeScript
-
-La configuration `tsconfig.json` est prete pour une lib TS moderne:
-
-- entree: `src/**/*`
-- sortie JS: `dist/`
-- declarations: activees (`declaration`, `declarationMap`)
-- mode strict active
-
-Le script de build lance:
+Pour lancer l'exemple fourni :
 
 ```bash
-npm run build
+bun example.ts
+# ou
+npx tsx example.ts
 ```
 
-### 2) Qualite de code
+## API
 
-Le template fournit:
+### `new GothMommy(hyperparams?, populationSize?, scoringFunction?, mutationRate?)`
 
-- `npm run typecheck` -> verifie les types sans emission
-- `npm run check` -> controle Biome
-- `npm run lint` -> lint Biome
-- `npm run format` -> formatage Biome
+| Paramètre | Défaut | Rôle |
+|---|---|---|
+| `hyperparams` | `{}` | Individu de départ. Ses valeurs numériques sont les paramètres à optimiser. |
+| `populationSize` | `10` | Nombre d'individus par génération. |
+| `scoringFunction` | scores à 0 | Reçoit toute la population, renvoie un score par individu (même ordre). |
+| `mutationRate` | `0.5` | Probabilité qu'un enfant soit muté (entre 0 et 1). |
 
-ESLint est aussi configure (`eslint.config.ts`) avec les regles JS recommandees + TypeScript ESLint.
+### `iterator(maxIterations?, threshold?)`
 
-### 3) Packaging npm
+Générateur qui produit un état par génération, et s'arrête quand le meilleur score atteint `threshold` ou après `maxIterations` (défaut : `1000`, `Infinity`).
 
-`package.json` est configure pour publier uniquement:
+Chaque état contient :
 
-- `dist`
-- `README.md`
-- `LICENSE`
+- `population` : les individus de la génération
+- `scores` : leurs scores
+- `iteration` : numéro de la génération
+- `bestScore` : le meilleur score
+- `best` : le meilleur individu
 
-Avant publication, `prepack` lance automatiquement le build.
+## Écrire une bonne fonction de score
 
-### 4) Publication automatisee
+C'est la partie la plus importante :
 
-Le workflow [publish.yml](.github/workflows/publish.yml) se declenche:
+- **Plus grand = meilleur.** Si tu veux minimiser une erreur, transforme-la, par exemple `1 / (1 + erreur)`.
+- **Les scores doivent être positifs ou nuls**, car la sélection est proportionnelle au score.
+- **Choisis un seuil réaliste** pour `threshold`, en lien avec la précision voulue plutôt qu'une valeur arbitraire.
 
-- sur push d'un tag `v*`
-- ou manuellement (`workflow_dispatch`)
+## Comment ça marche
 
-Il fait:
+1. **Population initiale** : le premier individu est exactement `hyperparams`, les autres sont dispersés autour (±10 sur chaque nombre).
+2. **Évaluation** : la fonction de score est appelée une fois par génération.
+3. **Élitisme** : le meilleur individu passe tel quel à la génération suivante.
+4. **Sélection** : les autres places sont tirées par roulette, proportionnellement au score.
+5. **Mutation** : chaque enfant a `mutationRate` chances d'être muté. Le bruit est de ±1, avec une échelle aléatoire (jusqu'à 1000 fois plus petite) pour affiner près de l'optimum.
 
-1. checkout
-2. install
-3. build
-4. `npm publish`
+## Limites
 
-### 5) Script de release local
-
-Le script [scripts/publish-package.sh](scripts/publish-package.sh):
-
-- refuse d'executer si le repo git n'est pas clean
-- lit la version dans `package.json`
-- cree/push le tag `v<version>`
-- supprime ancien tag/release si deja present
-- cree une release GitHub (si `gh` est installe)
-
-Commande:
-
-```bash
-npm run publish-package
-```
-
-## Utilisation recommandee
-
-1. Renommer le package et adapter la metadata dans `package.json`
-2. Creer votre dossier `src/` et votre point d'entree `src/index.ts`
-3. Verifier localement:
-
-```bash
-npm install
-npm run typecheck
-npm run lint
-npm run build
-```
-
-4. Bumper la version (`npm version patch|minor|major`)
-5. Publier via tag:
-
-```bash
-npm run publish-package
-```
-
-## Prerequis
-
-- Node.js recent
-- npm
-- git
-- optionnel: `gh` CLI pour la gestion auto des releases GitHub
-
-## Remarques
-
-- Le template suppose la presence d'un `src/` (a creer dans un nouveau module).
-- Les workflows GitHub utilisent des secrets/protections de votre repo cible.
+- Seuls les **nombres de premier niveau** sont mutés. Les chaînes, booléens et objets imbriqués sont copiés tels quels.
+- Pas de croisement entre individus : l'évolution repose sur la sélection et la mutation.
+- Les copies sont superficielles (`{ ...individu }`) : évite de modifier des objets imbriqués dans ta fonction de score.
+- Un algorithme génétique ne garantit pas de trouver l'optimum global. Si le résultat stagne, augmente `populationSize` ou `mutationRate`.
