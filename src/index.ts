@@ -4,122 +4,63 @@ export type Population = HyperParams[];
 export type Score = number[];
 export interface ScoringFunction { (population: Population): Score; }
 
-export interface GothMommyOptions {
-    /** Probabilité qu'un enfant soit muté (0..1). */
-    mutationRate?: number;
-    /** Amplitude maximale d'une mutation sur un nombre. */
-    mutationStrength?: number;
-    /** Amplitude du bruit appliqué aux nombres de la population initiale. */
-    initialSpread?: number;
-    /** Nombre de meilleurs individus copiés tels quels à la génération suivante. */
-    elitism?: number;
-}
-
-const isPlainObject = (v: unknown): v is HyperParams =>
-    typeof v === "object" && v !== null && !Array.isArray(v);
-
 export class GothMommy {
-    private scoringFunction: ScoringFunction;
     private population: Population;
-    private mutationRate: number;
-    private mutationStrength: number;
-    private initialSpread: number;
-    private elitism: number;
 
     constructor(
         hyperparams: HyperParams = {},
         populationSize: number = 10,
-        scoringFunction: ScoringFunction = (population: Population) => population.map(() => 0),
-        options: GothMommyOptions = {},
+        private scoringFunction: ScoringFunction = (population: Population) => population.map(() => 0),
+        private mutationRate: number = 0.5,
     ) {
-        this.mutationRate = options.mutationRate ?? 0.5;
-        this.mutationStrength = options.mutationStrength ?? 1;
-        this.initialSpread = options.initialSpread ?? 10;
-        this.elitism = Math.min(options.elitism ?? 1, populationSize);
-        this.scoringFunction = scoringFunction;
-        this.population = this.generateInitialPopulation(hyperparams, populationSize);
-    }
-
-    /** Bruit multi-échelle : de ±strength jusqu'à ±strength/1000, pour affiner près de l'optimum. */
-    private noise(strength: number): number {
-        return (Math.random() - 0.5) * 2 * strength * Math.pow(10, -3 * Math.random());
-    }
-
-    /** Applique `fn` à chaque nombre (récursivement) et renvoie une copie. */
-    private mapNumbers(params: HyperParams, fn: (n: number) => number): HyperParams {
-        const out: HyperParams = {};
-        for (const key of Object.keys(params)) {
-            const v = params[key]!;
-            if (typeof v === "number") out[key] = fn(v);
-            else if (isPlainObject(v)) out[key] = this.mapNumbers(v, fn);
-            else out[key] = structuredClone(v);
-        }
-        return out;
-    }
-
-    private generateInitialPopulation(hyperparams: HyperParams, populationSize: number): Population {
-        return Array.from({ length: populationSize }, (_, i) =>
-            // le premier individu reste exactement celui fourni, les autres sont dispersés
-            i === 0 ? this.mapNumbers(hyperparams, n => n) : this.mapNumbers(hyperparams, n => n + this.noise(this.initialSpread)),
+        // Le premier individu est celui fourni, les autres sont dispersés autour
+        this.population = Array.from({ length: populationSize }, (_, i) =>
+            this.mutate(hyperparams, i === 0 ? 0 : 10),
         );
     }
 
-    /** Probabilités de sélection proportionnelles au score (décalé si des scores sont négatifs). */
-    private toProbabilities(scores: Score): number[] {
-        const min = Math.min(...scores);
-        const shifted = scores.map(s => (Number.isFinite(s) ? s - Math.min(0, min) : 0));
-        const total = shifted.reduce((a, b) => a + b, 0);
-        return total > 0 ? shifted.map(s => s / total) : scores.map(() => 1 / scores.length);
-    }
-
-    private selectIndex(probabilities: number[]): number {
-        const r = Math.random();
-        let cumulative = 0;
-        for (let i = 0; i < probabilities.length; i++) {
-            cumulative += probabilities[i]!;
-            if (r < cumulative) return i;
+    /** Copie l'individu en ajoutant un bruit de ±strength aux nombres (multi-échelle pour affiner). */
+    private mutate(individual: HyperParams, strength: number): HyperParams {
+        const copy = { ...individual };
+        for (const key of Object.keys(copy)) {
+            if (typeof copy[key] === "number") {
+                const scale = strength * Math.pow(10, -3 * Math.random());
+                copy[key] = (copy[key] as number) + (Math.random() - 0.5) * 2 * scale;
+            }
         }
-        return probabilities.length - 1; // erreurs d'arrondi
+        return copy;
     }
 
-    private generateNextPopulation(population: Population, scores: Score): Population {
-        const probabilities = this.toProbabilities(scores);
+    /** Tirage proportionnel au score (roulette). */
+    private selectIndex(scores: Score): number {
+        const total = scores.reduce((a, b) => a + b, 0);
+        let r = Math.random() * total;
+        for (let i = 0; i < scores.length; i++) {
+            r -= scores[i]!;
+            if (r < 0) return i;
+        }
+        return scores.length - 1;
+    }
 
-        // Élitisme : les meilleurs passent tels quels
-        const ranked = scores.map((s, i) => [s, i] as const).sort((a, b) => b[0] - a[0]);
-        const next: Population = ranked
-            .slice(0, this.elitism)
-            .map(([, i]) => structuredClone(population[i]!));
-
-        while (next.length < population.length) {
-            // 1) sélection d'un parent selon son score, 2) mutation éventuelle
-            const parent = population[this.selectIndex(probabilities)]!;
-            const child = Math.random() < this.mutationRate
-                ? this.mapNumbers(parent, n => n + this.noise(this.mutationStrength))
-                : structuredClone(parent);
-            next.push(child);
+    private nextPopulation(scores: Score): Population {
+        const best = this.population[scores.indexOf(Math.max(...scores))]!;
+        const next: Population = [{ ...best }]; // élitisme : le meilleur survit
+        while (next.length < this.population.length) {
+            const parent = this.population[this.selectIndex(scores)]!;
+            next.push(Math.random() < this.mutationRate ? this.mutate(parent, 1) : { ...parent });
         }
         return next;
     }
 
-    /**
-     * @param maxIterations garde-fou contre les boucles infinies
-     * @param threshold     arrêt quand le meilleur score BRUT atteint cette valeur
-     */
+    /** S'arrête quand le meilleur score brut atteint `threshold`, ou après `maxIterations`. */
     * iterator(maxIterations: number = 1000, threshold: number = Infinity) {
         for (let i = 0; i < maxIterations; i++) {
-            const scores = this.scoringFunction(this.population); // appelé une seule fois
+            const scores = this.scoringFunction(this.population);
             const bestScore = Math.max(...scores);
-            const bestIndex = scores.indexOf(bestScore);
-            yield {
-                population: this.population,
-                scores,
-                iteration: i,
-                bestScore,
-                best: this.population[bestIndex]!,
-            };
+            const best = this.population[scores.indexOf(bestScore)]!;
+            yield { population: this.population, scores, iteration: i, bestScore, best };
             if (bestScore >= threshold) return;
-            this.population = this.generateNextPopulation(this.population, scores);
+            this.population = this.nextPopulation(scores);
         }
     }
 }

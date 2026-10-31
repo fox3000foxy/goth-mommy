@@ -12,12 +12,7 @@ const fx = (x: number) => x * x + 2 * x + 1;
 const scoringFunction: ScoringFunction = (population: Population) =>
     population.map(individual => 1 / (1 + Math.abs(fx(individual.x as number))));
 
-const gothMommy = new GothMommy(hyperparams, 20, scoringFunction, {
-    mutationRate: 0.5,
-    mutationStrength: 1,
-    initialSpread: 10,
-    elitism: 1,
-});
+const gothMommy = new GothMommy(hyperparams, 20, scoringFunction);
 
 // Arrêt quand fx(x) < 1e-8, ou après 2000 itérations
 const threshold = 1 / (1 + 1e-8);
