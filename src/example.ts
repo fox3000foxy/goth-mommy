@@ -1,23 +1,41 @@
-// Example usage
 import { type HyperParams, type Population, type ScoringFunction, GothMommy } from ".";
 
 const hyperparams: HyperParams = {
-    x: 5
+    x: 5,
 };
 
-// finding regressive best parameters to match x² + 2x + 1 = 0
-const scoringFunction: ScoringFunction = (population: Population) => { 
-    const fx = (x: number) => x * x + 2 * x + 1; // This is the function we want to minimize
-    const scores: number[] = population.map(individual => {
-        const x = individual.x as number; // Assuming x is a number in the hyperparameters
-        const score = -Math.abs(fx(x)); // We want to minimize the absolute value of fx(x)
-        return score; // Return the negative score for maximization
-    });
-    return scores;
+// Trouver x tel que x² + 2x + 1 = 0  (racine double en x = -1)
+const fx = (x: number) => x * x + 2 * x + 1;
+
+// Un score PLUS GRAND = un individu MEILLEUR.
+// 1 quand fx(x) = 0, et tend vers 0 quand x s'éloigne de la racine.
+const scoringFunction: ScoringFunction = (population: Population) =>
+    population.map(individual => 1 / (1 + Math.abs(fx(individual.x as number))));
+
+const gothMommy = new GothMommy(hyperparams, 20, scoringFunction, {
+    mutationRate: 0.5,
+    mutationStrength: 1,
+    initialSpread: 10,
+    elitism: 1,
+});
+
+// Arrêt quand fx(x) < 1e-8, ou après 2000 itérations
+const threshold = 1 / (1 + 1e-8);
+
+let last;
+for (const state of gothMommy.iterator(2000, threshold)) {
+    last = state;
+    if (state.iteration % 10 === 0) {
+        console.log(
+            `Iteration ${state.iteration}: meilleur score = ${state.bestScore.toFixed(8)}, ` +
+            `x = ${(state.best.x as number).toFixed(6)}`,
+        );
+    }
 }
 
-const gothMommy = new GothMommy(hyperparams, 10, scoringFunction);
-
-for(const state of gothMommy.iterator()) {
-    console.log(state);
+if (last) {
+    const x = last.best.x as number;
+    console.log(`\nTerminé à l'itération ${last.iteration}`);
+    console.log(`Meilleurs paramètres : ${JSON.stringify(last.best)}`);
+    console.log(`fx(x) = ${fx(x)}  (attendu : ~0, avec x ≈ -1)`);
 }
