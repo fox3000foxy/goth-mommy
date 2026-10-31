@@ -1,11 +1,11 @@
 {
-	"name": "module-template",
-	"version": "1.0.1",
+	"name": "goth-mommy",
+	"version": "0.0.1",
 	"license": "MIT",
 	"description": "Template de module TypeScript publiable sur npm avec build, checks de qualite et pipeline GitHub Actions.",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/itsrealfortune/module-template"
+		"url": "https://github.com/fox3000foxy/goth-mommy.git"
 	},
 	"main": "dist/index.js",
 	"module": "dist/index.js",
