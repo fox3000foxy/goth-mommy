@@ -1,6 +1,6 @@
 {
 	"name": "goth-mommy",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"license": "MIT",
 	"description": "Template de module TypeScript publiable sur npm avec build, checks de qualite et pipeline GitHub Actions.",
 	"repository": {
