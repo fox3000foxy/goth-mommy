@@ -2,8 +2,13 @@ import { type Space, fit, inferSpace } from "../space.js";
 import type { HyperParams } from "../types.js";
 
 /**
- * Réels et entiers : combinaison convexe `α·a + (1-α)·b` (α aléatoire),
- * arrondie et bornée selon le domaine. Bool et choix : pris chez un parent.
+ * Croisement arithmétique. Réels et entiers : combinaison convexe
+ * `α·a + (1-α)·b` (α aléatoire), arrondie et bornée selon le domaine.
+ * Booléens et choix : pris chez l'un des deux parents.
+ *
+ * @returns Un {@link Crossover}.
+ * @example
+ * new GothMommy(seed, 20, score, { crossover: arithmetic() });
  */
 export const arithmetic =
 	() =>
