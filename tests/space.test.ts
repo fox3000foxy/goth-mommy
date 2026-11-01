@@ -31,8 +31,8 @@ const valid = (p: HyperParams) =>
 	["relu", "tanh", "gelu"].includes(p.act as string) &&
 	typeof p.norm === "boolean";
 
-describe("domaines des gènes", () => {
-	test("spread : tout respecte le domaine, la graine est conservée", () => {
+describe("gene domains", () => {
+	test("spread: everything respects the domain, the seed is kept", () => {
 		const pop = spread(10)(seed, 200, space);
 		expect(pop[0]).toEqual(seed);
 		expect(pop.every(valid)).toBe(true);
@@ -43,7 +43,7 @@ describe("domaines des gènes", () => {
 		["perturb", perturb({ strength: 50, flipRate: 1 })],
 		["gaussian", gaussian({ sigma: 50, flipRate: 1 })],
 	] as const) {
-		test(`${name} : reste dans le domaine, ne touche pas l'original`, () => {
+		test(`${name}: stays in the domain, does not touch the original`, () => {
 			let p = { ...seed };
 			for (let i = 0; i < 300; i++) {
 				p = mutate(p, space);
@@ -51,13 +51,13 @@ describe("domaines des gènes", () => {
 			}
 			expect(seed).toEqual({ lr: 0.5, layers: 4, act: "relu", norm: true });
 		});
-		test(`${name} : un entier bouge toujours, un choix change`, () => {
+		test(`${name}: an integer always moves, a choice changes`, () => {
 			const out = mutate({ layers: 4, act: "relu" }, space);
 			expect(out.layers).not.toBe(4);
 			expect(out.act).not.toBe("relu");
 		});
 	}
-	test("croisements : restent dans le domaine", () => {
+	test("crossovers: stay in the domain", () => {
 		const other: HyperParams = { lr: 0.9, layers: 7, act: "tanh", norm: false };
 		for (const cross of [uniform(), arithmetic()]) {
 			for (let i = 0; i < 200; i++) {
@@ -65,14 +65,14 @@ describe("domaines des gènes", () => {
 			}
 		}
 	});
-	test("sans space : une chaîne reste constante, un nombre reste réel", () => {
+	test("without space: a string stays constant, a number stays a float", () => {
 		const out = perturb({ strength: 5 })({ x: 1, name: "a" });
 		expect(out.name).toBe("a");
 		expect(Number.isInteger(out.x)).toBe(false);
 	});
 });
 
-describe("GothMommy avec space", () => {
+describe("GothMommy with space", () => {
 	const score = (pop: HyperParams[]) =>
 		pop.map(
 			(p) =>
@@ -83,7 +83,7 @@ describe("GothMommy avec space", () => {
 					(p.norm ? 0 : 2) +
 					Math.abs((p.lr as number) - 0.1)),
 		);
-	test("trouve layers=7, act=tanh, norm=true, lr≈0.1", () => {
+	test("finds layers=7, act=tanh, norm=true, lr~=0.1", () => {
 		const ga = new GothMommy(seed, 30, score, {
 			space,
 			selector: tournament(3),
@@ -97,7 +97,7 @@ describe("GothMommy avec space", () => {
 		expect(best.norm).toBe(true);
 		expect(Math.abs((best.lr as number) - 0.1)).toBeLessThan(0.05);
 	});
-	test("refuse une graine incohérente avec le space", () => {
+	test("rejects a seed inconsistent with the space", () => {
 		expect(
 			() => new GothMommy({ ...seed, layers: 99 }, 5, undefined, { space }),
 		).toThrow();

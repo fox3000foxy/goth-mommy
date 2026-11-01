@@ -14,12 +14,12 @@ const isPermutation = (p: number[], n: number) =>
 const randomPerm = (n: number) =>
 	Array.from({ length: n }, (_, i) => i).sort(() => Math.random() - 0.5);
 
-describe("opérateurs de permutation", () => {
+describe("permutation operators", () => {
 	for (const [name, cross] of [
 		["ox", ox()],
 		["pmx", pmx()],
 	] as const) {
-		test(`${name} : l'enfant est toujours une permutation valide`, () => {
+		test(`${name}: the child is always a valid permutation`, () => {
 			for (let t = 0; t < 500; t++) {
 				const n = 1 + Math.floor(Math.random() * 15);
 				const a = randomPerm(n);
@@ -31,7 +31,7 @@ describe("opérateurs de permutation", () => {
 			}
 		});
 	}
-	test("ox et pmx : croiser deux parents identiques redonne ce parent", () => {
+	test("ox and pmx: crossing two identical parents returns that parent", () => {
 		const p = [3, 1, 4, 0, 2, 5];
 		for (let t = 0; t < 50; t++) {
 			expect(ox()(p, p)).toEqual(p);
@@ -42,7 +42,7 @@ describe("opérateurs de permutation", () => {
 		["swap", swap()],
 		["inversion", inversion()],
 	] as const) {
-		test(`${name} : reste une permutation, ne modifie pas l'original`, () => {
+		test(`${name}: stays a permutation, does not modify the original`, () => {
 			for (let t = 0; t < 300; t++) {
 				const n = 1 + Math.floor(Math.random() * 12);
 				const p = randomPerm(n);
@@ -52,12 +52,12 @@ describe("opérateurs de permutation", () => {
 			}
 		});
 	}
-	test("swap change exactement deux positions", () => {
+	test("swap changes exactly two positions", () => {
 		const p = [0, 1, 2, 3, 4, 5];
 		const out = swap()(p);
 		expect(out.filter((g, i) => g !== p[i])).toHaveLength(2);
 	});
-	test("inversion inverse un segment contigu", () => {
+	test("inversion reverses a contiguous segment", () => {
 		const out = inversion()([0, 1, 2, 3, 4, 5, 6, 7]);
 		const first = out.findIndex((g, i) => g !== i);
 		const last =
@@ -71,23 +71,23 @@ describe("opérateurs de permutation", () => {
 });
 
 describe("GothMommyPermutation", () => {
-	// coût = somme des écarts à la position idéale ; la solution est l'identité
+	// cost = sum of distances to the ideal position; the solution is the identity
 	const cost = (p: number[]) => p.reduce((s, g, i) => s + Math.abs(g - i), 0);
 	const score = (pop: number[][]) => pop.map((p) => 1 / (1 + cost(p)));
 
-	test("la population initiale est faite de permutations valides", () => {
+	test("the initial population is made of valid permutations", () => {
 		const ga = new GothMommyPermutation(9, 25, score);
 		const [first] = [...ga.iterator(1)];
 		expect(first!.population).toHaveLength(25);
 		expect(first!.population.every((p) => isPermutation(p, 9))).toBe(true);
 	});
-	test("trouve l'ordre optimal avec ox + swap", () => {
+	test("finds the optimal order with ox + swap", () => {
 		const ga = new GothMommyPermutation(10, 60, score);
 		let best: number[] = [];
 		for (const s of ga.iterator(3000, 1)) best = s.best;
 		expect(best).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 	});
-	test("trouve l'ordre optimal avec pmx + inversion", () => {
+	test("finds the optimal order with pmx + inversion", () => {
 		const ga = new GothMommyPermutation(10, 60, score, {
 			crossover: pmx(),
 			mutator: inversion(),
@@ -97,13 +97,13 @@ describe("GothMommyPermutation", () => {
 		for (const s of ga.iterator(3000, 1)) best = s.best;
 		expect(cost(best)).toBeLessThanOrEqual(2);
 	});
-	test("toutes les générations restent des permutations valides", () => {
+	test("all generations remain valid permutations", () => {
 		const ga = new GothMommyPermutation(8, 20, score);
 		for (const s of ga.iterator(40)) {
 			expect(s.population.every((p) => isPermutation(p, 8))).toBe(true);
 		}
 	});
-	test("refuse une taille invalide", () => {
+	test("rejects an invalid size", () => {
 		expect(() => new GothMommyPermutation(0)).toThrow();
 		expect(() => new GothMommyPermutation(2.5)).toThrow();
 	});
