@@ -3,7 +3,7 @@ import {
 	type Population,
 	type ScoringFunction,
 	GothMommy,
-} from "./index.js";
+} from "../src/index.js";
 
 const hyperparams: HyperParams = {
 	x: 5,
