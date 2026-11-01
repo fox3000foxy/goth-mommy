@@ -2,8 +2,8 @@ import { type Space, fit, inferSpace, intStep } from "../space.js";
 import type { HyperParams } from "../types.js";
 
 /**
- * Mutation commune à tous les mutateurs : `noise()` fournit le bruit des
- * réels (et des entiers, arrondis), `flipRate` règle les bool et les choix.
+ * Mutation shared by all mutators: `noise()` provides the noise for
+ * reals (and integers, rounded), `flipRate` controls bools and choices.
  */
 export const mutateGenes = (
 	individual: HyperParams,

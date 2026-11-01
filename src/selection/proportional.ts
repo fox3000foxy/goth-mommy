@@ -1,10 +1,10 @@
 import type { Selector } from "../types.js";
 
 /**
- * Sélection par roulette : probabilité proportionnelle au score.
- * Les scores doivent être >= 0. Si leur somme est nulle, tirage uniforme.
+ * Roulette selection: probability proportional to the score.
+ * Scores must be >= 0. If their sum is zero, pick uniformly.
  *
- * @returns Un {@link Selector}.
+ * @returns A {@link Selector}.
  * @example
  * new GothMommy(seed, 20, score, { selector: proportional() });
  */
@@ -17,7 +17,7 @@ export const proportional = (): Selector => (scores, k) => {
 			r -= scores[i]!;
 			if (r < 0) return i;
 		}
-		return scores.length - 1; // erreurs d'arrondi
+		return scores.length - 1; // rounding errors
 	};
 	return Array.from({ length: k }, pick);
 };

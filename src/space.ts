@@ -1,50 +1,50 @@
 import type { HyperParams } from "./types.js";
 
-/** Nombre réel, éventuellement borné. Voir {@link real}. */
+/** Real number, optionally bounded. See {@link real}. */
 export interface RealGene {
-	/** Discriminant : toujours `"real"`. */
+	/** Discriminator: always `"real"`. */
 	type: "real";
-	/** Borne basse (`-Infinity` si non bornée). */
+	/** Lower bound (`-Infinity` if unbounded). */
 	min: number;
-	/** Borne haute (`Infinity` si non bornée). */
+	/** Upper bound (`Infinity` if unbounded). */
 	max: number;
 }
 
-/** Entier dans un intervalle. Voir {@link int}. */
+/** Integer in a range. See {@link int}. */
 export interface IntGene {
-	/** Discriminant : toujours `"int"`. */
+	/** Discriminator: always `"int"`. */
 	type: "int";
-	/** Plus petite valeur autorisée. */
+	/** Smallest allowed value. */
 	min: number;
-	/** Plus grande valeur autorisée. */
+	/** Largest allowed value. */
 	max: number;
 }
 
-/** Booléen. Voir {@link bool}. */
+/** Boolean. See {@link bool}. */
 export interface BoolGene {
-	/** Discriminant : toujours `"bool"`. */
+	/** Discriminator: always `"bool"`. */
 	type: "bool";
 }
 
-/** Une valeur parmi une liste. Voir {@link choice}. */
+/** One value from a list. See {@link choice}. */
 export interface ChoiceGene {
-	/** Discriminant : toujours `"choice"`. */
+	/** Discriminator: always `"choice"`. */
 	type: "choice";
-	/** Les valeurs possibles, comparées avec `===`. */
+	/** The possible values, compared with `===`. */
 	values: readonly (number | boolean | string)[];
 }
 
-/** Domaine d'un gène : décide comment il est initialisé, muté et croisé. */
+/** Domain of a gene: controls how it is initialized, mutated and crossed over. */
 export type Gene = RealGene | IntGene | BoolGene | ChoiceGene;
 
-/** Un domaine par hyperparamètre. */
+/** One domain per hyperparameter. */
 export type Space = Record<string, Gene>;
 
 /**
- * Gène réel, borné ou non.
+ * Real gene, bounded or not.
  *
- * @param min - Borne basse. Défaut : `-Infinity`.
- * @param max - Borne haute. Défaut : `Infinity`.
+ * @param min - Lower bound. Default: `-Infinity`.
+ * @param max - Upper bound. Default: `Infinity`.
  * @example
  * real(1e-5, 1) // learning rate
  */
@@ -54,12 +54,12 @@ export const real = (min = -Infinity, max = Infinity): Gene => ({
 	max,
 });
 /**
- * Gène entier dans `[min, max]`. À la mutation, il bouge toujours d'au moins ±1.
+ * Integer gene in `[min, max]`. On mutation, it always moves by at least +/-1.
  *
- * @param min - Plus petite valeur autorisée.
- * @param max - Plus grande valeur autorisée.
+ * @param min - Smallest allowed value.
+ * @param max - Largest allowed value.
  * @example
- * int(1, 8) // nombre de couches
+ * int(1, 8) // number of layers
  */
 export const int = (min: number, max: number): Gene => ({
 	type: "int",
@@ -67,17 +67,17 @@ export const int = (min: number, max: number): Gene => ({
 	max,
 });
 /**
- * Gène booléen.
+ * Boolean gene.
  *
  * @example
- * bool() // batch normalization oui/non
+ * bool() // batch normalization yes/no
  */
 export const bool = (): Gene => ({ type: "bool" });
 
 /**
- * Gène catégoriel : une valeur parmi une liste (chaînes, nombres, booléens).
+ * Categorical gene: one value from a list (strings, numbers, booleans).
  *
- * @param values - Les valeurs possibles, comparées avec `===`.
+ * @param values - The possible values, compared with `===`.
  * @example
  * choice(["relu", "tanh", "gelu"])
  */
@@ -89,8 +89,8 @@ export const choice = (
 });
 
 /**
- * Domaines déduits d'un individu quand rien n'est déclaré :
- * nombre → réel non borné, booléen → bool, chaîne → constante.
+ * Domains inferred from an individual when nothing is declared:
+ * number -> unbounded real, boolean -> bool, string -> constant.
  */
 export const inferSpace = (individual: HyperParams): Space => {
 	const space: Space = {};
@@ -108,7 +108,7 @@ export const inferSpace = (individual: HyperParams): Space => {
 const clamp = (v: number, min: number, max: number) =>
 	Math.min(max, Math.max(min, v));
 
-/** Ramène une valeur dans son domaine (bornes, arrondi des entiers). */
+/** Clamp a value to its domain (bounds, integer rounding). */
 export const fit = (gene: Gene, value: number): number =>
 	gene.type === "int"
 		? clamp(Math.round(value), gene.min, gene.max)
@@ -116,14 +116,14 @@ export const fit = (gene: Gene, value: number): number =>
 			? clamp(value, gene.min, gene.max)
 			: value;
 
-/** Entier non nul le plus proche du bruit : un gène entier doit toujours bouger. */
+/** Nonzero integer closest to the noise: an integer gene must always move. */
 export const intStep = (noise: number): number =>
 	Math.round(noise) || (Math.random() < 0.5 ? -1 : 1);
 
 const randomInt = (min: number, max: number) =>
 	min + Math.floor(Math.random() * (max - min + 1));
 
-/** Tire une valeur dans le domaine ; `around`/`amplitude` servent aux réels non bornés. */
+/** Draw a value in the domain; `around`/`amplitude` apply to unbounded reals. */
 export const randomValue = (
 	gene: Gene,
 	around: number | boolean | string,
@@ -143,11 +143,11 @@ export const randomValue = (
 	}
 };
 
-/** Vérifie que l'individu de départ respecte son domaine. */
+/** Check that the seed individual fits its domain. */
 export const validateSeed = (seed: HyperParams, space: Space): void => {
 	for (const [key, gene] of Object.entries(space)) {
 		if (!(key in seed))
-			throw new Error(`"${key}" est dans le space mais pas dans hyperparams`);
+			throw new Error(`"${key}" is in the space but missing from hyperparams`);
 		const v = seed[key]!;
 		const ok =
 			gene.type === "bool"
@@ -157,7 +157,7 @@ export const validateSeed = (seed: HyperParams, space: Space): void => {
 					: typeof v === "number" && fit(gene, v) === v;
 		if (!ok)
 			throw new Error(
-				`"${key}" = ${String(v)} est hors de son domaine (${gene.type})`,
+				`"${key}" = ${String(v)} is outside its domain (${gene.type})`,
 			);
 	}
 };

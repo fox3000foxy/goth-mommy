@@ -2,11 +2,11 @@ import { type Space, fit, inferSpace } from "../space.js";
 import type { HyperParams } from "../types.js";
 
 /**
- * Croisement arithmétique. Réels et entiers : combinaison convexe
- * `α·a + (1-α)·b` (α aléatoire), arrondie et bornée selon le domaine.
- * Booléens et choix : pris chez l'un des deux parents.
+ * Arithmetic crossover. Reals and integers: convex combination
+ * `alpha*a + (1-alpha)*b` (random alpha), rounded and clamped to the domain.
+ * Booleans and choices: taken from either parent.
  *
- * @returns Un {@link Crossover}.
+ * @returns A {@link Crossover}.
  * @example
  * new GothMommy(seed, 20, score, { crossover: arithmetic() });
  */

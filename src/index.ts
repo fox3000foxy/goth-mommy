@@ -46,40 +46,40 @@ export {
 	swap,
 } from "./permutation/index.js";
 
-/** Options de {@link GothMommy}. Toutes sont facultatives. */
+/** Options of {@link GothMommy}. All are optional. */
 export interface GothMommyOptions {
 	/**
-	 * Domaine de chaque hyperparamètre (`real`, `int`, `bool`, `choice`).
-	 * Les clés absentes sont déduites de la graine (nombre → réel, booléen → bool,
-	 * chaîne → constante).
+	 * Domain of each hyperparameter (`real`, `int`, `bool`, `choice`).
+	 * Missing keys are inferred from the seed (number -> real, boolean -> bool,
+	 * string -> constant).
 	 */
 	space?: Space;
-	/** Probabilité qu'un enfant soit muté (0..1). Défaut : 0.5. */
+	/** Probability that a child is mutated (0..1). Default: 0.5. */
 	mutationRate?: number;
-	/** Nombre de meilleurs individus copiés tels quels. Défaut : 1. */
+	/** Number of best individuals copied as is. Default: 1. */
 	elitism?: number;
-	/** Probabilité de croiser deux parents (0..1). Défaut : 0.7. Sans effet sans `crossover`. */
+	/** Probability of crossing two parents (0..1). Default: 0.7. No effect without `crossover`. */
 	crossoverRate?: number;
-	/** Absent par défaut : pas de croisement, un seul parent par enfant. */
+	/** Absent by default: no crossover, one parent per child. */
 	crossover?: Crossover;
-	/** Choix des parents. Défaut : `proportional()`. */
+	/** Parent selection. Default: `proportional()`. */
 	selector?: Selector;
-	/** Mutation d'un individu. Défaut : `perturb()`. */
+	/** Mutation of an individual. Default: `perturb()`. */
 	mutator?: Mutator;
-	/** Construction de la population de départ. Défaut : `spread()`. */
+	/** Starting population builder. Default: `spread()`. */
 	initializer?: Initializer;
 }
 
 /**
- * Algorithme génétique pour chercher de bons hyperparamètres.
+ * Genetic algorithm for finding good hyperparameters.
  *
- * Tu fournis un individu de départ, le domaine de chaque paramètre et une
- * fonction de score (plus grand = meilleur) ; la population évolue génération
- * après génération.
+ * You provide a starting individual, the domain of each parameter and a
+ * score function (larger = better); the population evolves generation
+ * after generation.
  *
  * @example
  * ```ts
- * // Trouver x tel que x² + 2x + 1 = 0 (racine double en x = -1)
+ * // Find x such that x^2 + 2x + 1 = 0 (double root at x = -1)
  * const score = (population: HyperParams[]) =>
  *   population.map((p) => 1 / (1 + Math.abs((p.x as number) ** 2 + 2 * (p.x as number) + 1)));
  *
@@ -93,12 +93,12 @@ export class GothMommy {
 	private engine: Engine<HyperParams>;
 
 	/**
-	 * @param hyperparams - L'individu de départ (la graine). Il doit respecter
-	 * son domaine, sinon le constructeur lève une erreur.
-	 * @param populationSize - Nombre d'individus par génération. Défaut : 10.
-	 * @param scoringFunction - Évalue la population. Défaut : des scores à 0.
-	 * @param options - Domaines, taux et briques. Voir {@link GothMommyOptions}.
-	 * @throws Si un gène du `space` manque dans `hyperparams` ou en sort.
+	 * @param hyperparams - The starting individual (the seed). It must fit
+	 * its domain, else the constructor throws.
+	 * @param populationSize - Number of individuals per generation. Default: 10.
+	 * @param scoringFunction - Score the population. Default: zero scores.
+	 * @param options - Domains, rates and parts. See {@link GothMommyOptions}.
+	 * @throws If a `space` gene is missing from `hyperparams` or out of range.
 	 */
 	constructor(
 		hyperparams: HyperParams = {},
@@ -126,12 +126,12 @@ export class GothMommy {
 	}
 
 	/**
-	 * Fait évoluer la population, une génération par itération.
+	 * Evolve the population, one generation per iteration.
 	 *
-	 * @param maxIterations - Garde-fou contre les boucles infinies. Défaut : 1000.
-	 * @param threshold - S'arrête quand le meilleur score brut l'atteint.
-	 * Défaut : `Infinity` (jamais).
-	 * @returns Un état par génération : population, scores, meilleur individu.
+	 * @param maxIterations - Guard against infinite loops. Default: 1000.
+	 * @param threshold - Stop when the best raw score reaches it.
+	 * Default: `Infinity` (never).
+	 * @returns One state per generation: population, scores, best individual.
 	 */
 	iterator(maxIterations?: number, threshold?: number) {
 		return this.engine.iterator(maxIterations, threshold);

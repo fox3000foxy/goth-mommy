@@ -2,12 +2,12 @@ import { type Space, inferSpace, randomValue } from "../space.js";
 import type { HyperParams } from "../types.js";
 
 /**
- * Population initiale dispersée. Le premier individu est exactement la graine.
- * Les autres sont tirés dans le domaine de chaque gène : uniformément s'il est
- * borné, sinon à ±`amplitude` autour de la graine.
+ * Scattered starting population. The first individual is exactly the seed.
+ * The others are drawn in each gene's domain: uniformly if bounded,
+ * else within +/-`amplitude` around the seed.
  *
- * @param amplitude - Dispersion des réels non bornés. Défaut : 10.
- * @returns Un {@link Initializer}.
+ * @param amplitude - Spread of unbounded reals. Default: 10.
+ * @returns An {@link Initializer}.
  */
 export const spread =
 	(amplitude = 10) =>

@@ -2,21 +2,21 @@ import type { Space } from "../space.js";
 import type { HyperParams } from "../types.js";
 import { mutateGenes } from "./genes.js";
 
-/** Options de {@link perturb}. */
+/** Options of {@link perturb}. */
 export interface PerturbOptions {
-	/** Amplitude maximale du bruit (±strength). */
+	/** Maximum noise amplitude (+/-strength). */
 	strength?: number;
-	/** Probabilité d'inverser un booléen ou de changer un choix. */
+	/** Probability of flipping a boolean or changing a choice. */
 	flipRate?: number;
 }
 
 /**
- * Mutation par bruit uniforme multi-échelle (de ±strength jusqu'à
- * ±strength/1000, pour pouvoir affiner près de l'optimum). Respecte le
- * domaine de chaque gène.
+ * Multi-scale uniform noise mutation (from +/-strength down to
+ * +/-strength/1000, to refine near the optimum). Respects the
+ * domain of each gene.
  *
- * @param options - Voir {@link PerturbOptions}.
- * @returns Un {@link Mutator}.
+ * @param options - See {@link PerturbOptions}.
+ * @returns A {@link Mutator}.
  * @example
  * new GothMommy(seed, 20, score, { mutator: perturb({ strength: 2 }) });
  */

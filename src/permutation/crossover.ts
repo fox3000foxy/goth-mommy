@@ -1,22 +1,22 @@
 /**
- * Un ordre : une permutation des entiers `0..n-1`, chacun exactement une fois.
- * À toi de les faire correspondre à tes villes, tâches, etc.
+ * An order: a permutation of the integers `0..n-1`, each exactly once.
+ * Map them to your cities, tasks, etc.
  */
 export type Permutation = number[];
 
 /**
- * Combine deux permutations en une permutation valide. Ne modifie jamais les
+ * Combine two permutations into a valid permutation. Never modifies the
  * parents.
  *
- * @param a - Le premier parent.
- * @param b - Le second parent, de même longueur.
+ * @param a - The first parent.
+ * @param b - The second parent, of the same length.
  */
 export type PermutationCrossover = (
 	a: Permutation,
 	b: Permutation,
 ) => Permutation;
 
-/** Deux bornes aléatoires i <= j dans [0, n). */
+/** Two random bounds i <= j in [0, n). */
 const randomSegment = (n: number): [number, number] => {
 	const x = Math.floor(Math.random() * n);
 	const y = Math.floor(Math.random() * n);
@@ -24,11 +24,11 @@ const randomSegment = (n: number): [number, number] => {
 };
 
 /**
- * Order crossover (OX) : le segment [i, j] vient de `a`, le reste est rempli
- * avec les gènes de `b`, dans l'ordre où ils apparaissent après j.
- * Préserve l'ordre relatif : adapté aux problèmes de séquence (TSP).
+ * Order crossover (OX): the segment [i, j] comes from `a`, the rest is filled
+ * with the genes of `b`, in the order they appear after j.
+ * Preserves relative order: suited to sequence problems (TSP).
  *
- * @returns Un {@link PermutationCrossover}.
+ * @returns A {@link PermutationCrossover}.
  */
 export const ox = (): PermutationCrossover => (a, b) => {
 	const n = a.length;
@@ -51,11 +51,11 @@ export const ox = (): PermutationCrossover => (a, b) => {
 };
 
 /**
- * Partially mapped crossover (PMX) : le segment [i, j] vient de `a`, les
- * autres positions gardent le gène de `b`, ou son image par la
- * correspondance du segment si ce gène est déjà pris. Préserve les positions.
+ * Partially mapped crossover (PMX): the segment [i, j] comes from `a`, the
+ * other positions keep the gene of `b`, or its image through the
+ * segment mapping if that gene is already taken. Preserves positions.
  *
- * @returns Un {@link PermutationCrossover}.
+ * @returns A {@link PermutationCrossover}.
  */
 export const pmx = (): PermutationCrossover => (a, b) => {
 	const n = a.length;

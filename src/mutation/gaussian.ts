@@ -2,24 +2,24 @@ import type { Space } from "../space.js";
 import type { HyperParams } from "../types.js";
 import { mutateGenes } from "./genes.js";
 
-/** Options de {@link gaussian}. */
+/** Options of {@link gaussian}. */
 export interface GaussianOptions {
-	/** Écart-type du bruit. */
+	/** Noise standard deviation. */
 	sigma?: number;
-	/** Probabilité d'inverser un booléen ou de changer un choix. */
+	/** Probability of flipping a boolean or changing a choice. */
 	flipRate?: number;
 }
 
-/** Loi normale centrée réduite (Box-Muller). */
+/** Standard normal distribution (Box-Muller). */
 const randn = (): number =>
 	Math.sqrt(-2 * Math.log(1 - Math.random())) *
 	Math.cos(2 * Math.PI * Math.random());
 
 /**
- * Mutation par bruit gaussien N(0, sigma²). Respecte le domaine de chaque gène.
+ * Gaussian noise mutation N(0, sigma^2). Respects the domain of each gene.
  *
- * @param options - Voir {@link GaussianOptions}.
- * @returns Un {@link Mutator}.
+ * @param options - See {@link GaussianOptions}.
+ * @returns A {@link Mutator}.
  * @example
  * new GothMommy(seed, 20, score, { mutator: gaussian({ sigma: 0.5 }) });
  */

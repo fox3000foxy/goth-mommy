@@ -1,14 +1,14 @@
 import type { Permutation } from "./crossover.js";
 
 /**
- * Renvoie une copie mutée de la permutation, toujours valide. Ne modifie
- * jamais l'original.
+ * Return a mutated copy of the permutation, always valid. Never
+ * modifies the original.
  *
- * @param individual - La permutation à muter.
+ * @param individual - The permutation to mutate.
  */
 export type PermutationMutator = (individual: Permutation) => Permutation;
 
-/** Deux positions distinctes i < j, ou `null` si la permutation est trop courte. */
+/** Two distinct positions i < j, or `null` if the permutation is too short. */
 const twoPositions = (n: number): [number, number] | null => {
 	if (n < 2) return null;
 	const i = Math.floor(Math.random() * n);
@@ -18,9 +18,9 @@ const twoPositions = (n: number): [number, number] | null => {
 };
 
 /**
- * Mutation par échange : intervertit deux gènes choisis au hasard.
+ * Swap mutation: swap two randomly picked genes.
  *
- * @returns Un {@link PermutationMutator}.
+ * @returns A {@link PermutationMutator}.
  */
 export const swap = (): PermutationMutator => (individual) => {
 	const copy = [...individual];
@@ -30,10 +30,10 @@ export const swap = (): PermutationMutator => (individual) => {
 };
 
 /**
- * Mutation par inversion : inverse l'ordre d'un segment choisi au hasard
- * (le « 2-opt » du voyageur de commerce).
+ * Inversion mutation: reverse the order of a randomly picked segment
+ * (the "2-opt" of the traveling salesman).
  *
- * @returns Un {@link PermutationMutator}.
+ * @returns A {@link PermutationMutator}.
  */
 export const inversion = (): PermutationMutator => (individual) => {
 	const copy = [...individual];

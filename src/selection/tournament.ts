@@ -1,14 +1,14 @@
 import type { Selector } from "../types.js";
 
 /**
- * Sélection par tournoi : pour chaque parent, tire `size` individus au hasard
- * et garde le meilleur. Accepte les scores négatifs, contrairement à la
+ * Tournament selection: for each parent, draw `size` individuals at random
+ * and keep the best. Accepts negative scores, unlike
  * roulette.
  *
- * @param size - Taille du tournoi. Règle la pression de sélection :
- * 1 = tirage uniforme, plus grand = on favorise davantage les meilleurs.
- * Défaut : 3.
- * @returns Un {@link Selector}.
+ * @param size - Tournament size. Controls selection pressure:
+ * 1 = uniform draw, larger = favors the best more.
+ * Default: 3.
+ * @returns A {@link Selector}.
  * @example
  * new GothMommy(seed, 20, score, { selector: tournament(5) });
  */

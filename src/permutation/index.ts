@@ -17,26 +17,26 @@ export {
 export { type PermutationMutator, inversion, swap } from "./mutation.js";
 
 /**
- * Évalue toute la population d'un coup, une fois par génération.
+ * Score the whole population at once, once per generation.
  *
- * @param population - Les permutations à évaluer.
- * @returns Un score par permutation, dans le même ordre. Plus grand = meilleur.
+ * @param population - The permutations to score.
+ * @returns One score per permutation, in the same order. Larger = better.
  */
 export type PermutationScoringFunction = (population: Permutation[]) => Score;
 
-/** Options de {@link GothMommyPermutation}. Toutes sont facultatives. */
+/** Options of {@link GothMommyPermutation}. All are optional. */
 export interface PermutationOptions {
-	/** Probabilité qu'un enfant soit muté (0..1). Défaut : 0.5. */
+	/** Probability that a child is mutated (0..1). Default: 0.5. */
 	mutationRate?: number;
-	/** Probabilité de croiser deux parents (0..1). Défaut : 0.9. Mettre 0 pour désactiver. */
+	/** Probability of crossing two parents (0..1). Default: 0.9. Set 0 to disable. */
 	crossoverRate?: number;
-	/** Nombre de meilleurs individus copiés tels quels. Défaut : 1. */
+	/** Number of best individuals copied as is. Default: 1. */
 	elitism?: number;
-	/** Défaut : `tournament(3)`. */
+	/** Default: `tournament(3)`. */
 	selector?: Selector;
-	/** Défaut : `ox()`. */
+	/** Default: `ox()`. */
 	crossover?: PermutationCrossover;
-	/** Défaut : `swap()`. */
+	/** Default: `swap()`. */
 	mutator?: PermutationMutator;
 }
 
@@ -50,13 +50,13 @@ const shuffled = (size: number): Permutation => {
 };
 
 /**
- * Algorithme génétique pour les problèmes d'ordre (TSP, ordonnancement…).
- * Un individu est une permutation des entiers `0..size-1` : à toi de faire
- * correspondre ces entiers à tes villes, tâches, etc.
+ * Genetic algorithm for ordering problems (TSP, scheduling...).
+ * An individual is a permutation of the integers `0..size-1`: map
+ * these integers to your cities, tasks, etc.
  *
  * @example
  * ```ts
- * // Circuit le plus court : score = inverse de la longueur du circuit
+ * // Shortest tour: score = inverse of the tour length
  * const ga = new GothMommyPermutation(cities.length, 50, (population) =>
  *   population.map((tour) => 1 / tourLength(tour)),
  *   { crossover: pmx(), mutator: inversion() },
@@ -68,11 +68,11 @@ export class GothMommyPermutation {
 	private engine: Engine<Permutation>;
 
 	/**
-	 * @param size - Nombre d'éléments à ordonner (entier >= 1).
-	 * @param populationSize - Nombre de permutations par génération. Défaut : 10.
-	 * @param scoringFunction - Évalue la population. Défaut : des scores à 0.
-	 * @param options - Taux et briques. Voir {@link PermutationOptions}.
-	 * @throws Si `size` n'est pas un entier >= 1.
+	 * @param size - Number of items to order (integer >= 1).
+	 * @param populationSize - Number of permutations per generation. Default: 10.
+	 * @param scoringFunction - Score the population. Default: zero scores.
+	 * @param options - Rates and parts. See {@link PermutationOptions}.
+	 * @throws If `size` is not an integer >= 1.
 	 */
 	constructor(
 		size: number,
@@ -82,7 +82,7 @@ export class GothMommyPermutation {
 		options: PermutationOptions = {},
 	) {
 		if (!Number.isInteger(size) || size < 1) {
-			throw new Error("size doit être un entier >= 1");
+			throw new Error("size must be an integer >= 1");
 		}
 		this.engine = new Engine(
 			Array.from({ length: populationSize }, () => shuffled(size)),
@@ -100,12 +100,12 @@ export class GothMommyPermutation {
 	}
 
 	/**
-	 * Fait évoluer la population, une génération par itération.
+	 * Evolve the population, one generation per iteration.
 	 *
-	 * @param maxIterations - Garde-fou contre les boucles infinies. Défaut : 1000.
-	 * @param threshold - S'arrête quand le meilleur score brut l'atteint.
-	 * Défaut : `Infinity` (jamais).
-	 * @returns Un état par génération : population, scores, meilleur individu.
+	 * @param maxIterations - Guard against infinite loops. Default: 1000.
+	 * @param threshold - Stop when the best raw score reaches it.
+	 * Default: `Infinity` (never).
+	 * @returns One state per generation: population, scores, best individual.
 	 */
 	iterator(maxIterations?: number, threshold?: number) {
 		return this.engine.iterator(maxIterations, threshold);

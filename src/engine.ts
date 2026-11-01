@@ -1,35 +1,35 @@
 import type { Score, Selector } from "./types.js";
 
-/** Réglages du moteur d'évolution (interne). */
+/** Evolution engine settings (internal). */
 export interface EngineConfig<T> {
 	scoring: (population: T[]) => Score;
 	selector: Selector;
-	/** Copie indépendante d'un individu. */
+	/** Independent copy of an individual. */
 	clone: (individual: T) => T;
 	mutate: (individual: T) => T;
-	/** Absent : pas de croisement, un seul parent par enfant. */
+	/** Absent: no crossover, one parent per child. */
 	crossover?: (a: T, b: T) => T;
 	mutationRate: number;
 	crossoverRate: number;
-	/** Nombre de meilleurs individus copiés tels quels. */
+	/** Number of best individuals copied as is. */
 	elitism: number;
 }
 
-/** Ce que produit l'`iterator` à chaque génération. */
+/** What the `iterator` yields at each generation. */
 export interface GenerationState<T> {
-	/** Les individus de cette génération. */
+	/** The individuals of this generation. */
 	population: T[];
-	/** Leurs scores, dans le même ordre. */
+	/** Their scores, in the same order. */
 	scores: Score;
-	/** Numéro de la génération, à partir de 0. */
+	/** The generation number, starting from 0. */
 	iteration: number;
-	/** Le meilleur score de la génération. */
+	/** The best score of the generation. */
 	bestScore: number;
-	/** L'individu qui a obtenu `bestScore`. */
+	/** The individual that got `bestScore`. */
 	best: T;
 }
 
-/** Boucle d'évolution commune, indépendante de la forme des individus. */
+/** Shared evolution loop, independent of the individual shape. */
 export class Engine<T> {
 	constructor(
 		private population: T[],
@@ -42,12 +42,12 @@ export class Engine<T> {
 			.map((score, i) => [score, i] as const)
 			.sort((a, b) => b[0] - a[0]);
 		const elitism = Math.min(this.config.elitism, this.population.length);
-		// élitisme : les meilleurs survivent tels quels
+		// elitism: the best survive as is
 		const next = ranked
 			.slice(0, elitism)
 			.map(([, i]) => clone(this.population[i]!));
 		const count = this.population.length - next.length;
-		// avec croisement : deux parents par enfant
+		// with crossover: two parents per child
 		const parents = selector(scores, crossover ? count * 2 : count);
 		for (let c = 0; c < count; c++) {
 			const a = this.population[parents[crossover ? 2 * c : c]!]!;
@@ -62,7 +62,7 @@ export class Engine<T> {
 		return next;
 	}
 
-	/** S'arrête quand le meilleur score brut atteint `threshold`, ou après `maxIterations`. */
+	/** Stop when the best raw score reaches `threshold`, or after `maxIterations`. */
 	*iterator(
 		maxIterations: number = 1000,
 		threshold: number = Infinity,

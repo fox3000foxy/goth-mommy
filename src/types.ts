@@ -1,55 +1,55 @@
 import type { Space } from "./space.js";
 
 /**
- * Un individu : un jeu d'hyperparamètres, par nom.
- * Les valeurs peuvent être des nombres, des booléens ou des chaînes ; leur
- * domaine se déclare avec l'option `space` de {@link GothMommy}.
+ * An individual: a set of hyperparameters, by name.
+ * Values can be numbers, booleans or strings; their
+ * domain is declared with the `space` option of {@link GothMommy}.
  */
 export interface HyperParams {
 	[key: string]: number | boolean | string;
 }
 
-/** Une génération d'individus. */
+/** One generation of individuals. */
 export type Population = HyperParams[];
 
 /**
- * Un score par individu, dans le même ordre que la population.
- * Un score PLUS GRAND = un individu MEILLEUR.
+ * One score per individual, in the same order as the population.
+ * A LARGER score = a BETTER individual.
  */
 export type Score = number[];
 
 /**
- * Évalue toute la population d'un coup. Appelée une seule fois par génération.
+ * Score the whole population at once. Called once per generation.
  *
- * @param population - Les individus à évaluer.
- * @returns Un score par individu, dans le même ordre. Plus grand = meilleur,
- * et >= 0 avec `proportional()`.
+ * @param population - The individuals to score.
+ * @returns One score per individual, in the same order. Larger = better,
+ * and >= 0 with `proportional()`.
  */
 export type ScoringFunction = (population: Population) => Score;
 
 /**
- * Choisit des parents à partir des scores.
+ * Pick parents from scores.
  *
- * @param scores - Le score de chaque individu de la population.
- * @param k - Le nombre de parents à choisir.
- * @returns `k` indices dans la population, avec remise.
+ * @param scores - The score of each individual in the population.
+ * @param k - The number of parents to pick.
+ * @returns `k` indices into the population, with replacement.
  */
 export type Selector = (scores: Score, k: number) => number[];
 
 /**
- * Renvoie une copie mutée de l'individu. Ne modifie jamais l'original.
+ * Return a mutated copy of the individual. Never modifies the original.
  *
- * @param individual - L'individu à muter.
- * @param space - Le domaine de chaque gène : le résultat doit le respecter.
+ * @param individual - The individual to mutate.
+ * @param space - The domain of each gene: the result must fit it.
  */
 export type Mutator = (individual: HyperParams, space: Space) => HyperParams;
 
 /**
- * Construit la population de départ à partir d'un individu de référence.
+ * Build the starting population from a reference individual.
  *
- * @param seed - L'individu fourni au constructeur.
- * @param size - La taille de population demandée.
- * @param space - Le domaine de chaque gène.
+ * @param seed - The individual given to the constructor.
+ * @param size - The requested population size.
+ * @param space - The domain of each gene.
  */
 export type Initializer = (
 	seed: HyperParams,
@@ -58,11 +58,11 @@ export type Initializer = (
 ) => Population;
 
 /**
- * Combine deux parents en un enfant. Ne modifie jamais les parents.
+ * Combine two parents into a child. Never modifies the parents.
  *
- * @param a - Le premier parent.
- * @param b - Le second parent.
- * @param space - Le domaine de chaque gène : l'enfant doit le respecter.
+ * @param a - The first parent.
+ * @param b - The second parent.
+ * @param space - The domain of each gene: the child must fit it.
  */
 export type Crossover = (
 	a: HyperParams,
