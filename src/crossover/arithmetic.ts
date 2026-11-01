@@ -1,20 +1,30 @@
-import type { Crossover } from "../types.js";
+import { type Space, fit, inferSpace } from "../space.js";
+import type { HyperParams } from "../types.js";
 
 /**
- * Nombres : combinaison convexe `α·a + (1-α)·b` avec α tiré au hasard.
- * Booléens : pris chez l'un des deux parents.
+ * Réels et entiers : combinaison convexe `α·a + (1-α)·b` (α aléatoire),
+ * arrondie et bornée selon le domaine. Bool et choix : pris chez un parent.
  */
-export const arithmetic = (): Crossover => (a, b) => {
-	const child = { ...a };
-	const alpha = Math.random();
-	for (const key of Object.keys(b)) {
-		const x = a[key];
-		const y = b[key]!;
-		if (typeof x === "number" && typeof y === "number") {
-			child[key] = alpha * x + (1 - alpha) * y;
-		} else if (!(key in a) || Math.random() < 0.5) {
-			child[key] = y;
+export const arithmetic =
+	() =>
+	(a: HyperParams, b: HyperParams, space: Space = {}): HyperParams => {
+		const genes = { ...inferSpace(a), ...space };
+		const child = { ...a };
+		const alpha = Math.random();
+		for (const key of Object.keys(b)) {
+			const x = a[key];
+			const y = b[key]!;
+			const gene = genes[key];
+			if (
+				gene &&
+				(gene.type === "real" || gene.type === "int") &&
+				typeof x === "number" &&
+				typeof y === "number"
+			) {
+				child[key] = fit(gene, alpha * x + (1 - alpha) * y);
+			} else if (!(key in a) || Math.random() < 0.5) {
+				child[key] = y;
+			}
 		}
-	}
-	return child;
-};
+		return child;
+	};

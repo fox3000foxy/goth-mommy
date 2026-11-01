@@ -1,9 +1,11 @@
-import type { Mutator } from "../types.js";
+import type { Space } from "../space.js";
+import type { HyperParams } from "../types.js";
+import { mutateGenes } from "./genes.js";
 
 export interface GaussianOptions {
-	/** Écart-type du bruit sur les nombres. */
+	/** Écart-type du bruit. */
 	sigma?: number;
-	/** Probabilité d'inverser un booléen. */
+	/** Probabilité d'inverser un booléen ou de changer un choix. */
 	flipRate?: number;
 }
 
@@ -12,15 +14,8 @@ const randn = (): number =>
 	Math.sqrt(-2 * Math.log(1 - Math.random())) *
 	Math.cos(2 * Math.PI * Math.random());
 
-/** Bruit gaussien N(0, sigma²) sur les nombres, inversion aléatoire des booléens. */
+/** Bruit gaussien N(0, sigma²). Respecte le domaine de chaque gène. */
 export const gaussian =
-	({ sigma = 1, flipRate = 0.1 }: GaussianOptions = {}): Mutator =>
-	(individual) => {
-		const copy = { ...individual };
-		for (const key of Object.keys(copy)) {
-			const value = copy[key]!;
-			if (typeof value === "number") copy[key] = value + sigma * randn();
-			else if (Math.random() < flipRate) copy[key] = !value;
-		}
-		return copy;
-	};
+	({ sigma = 1, flipRate = 0.1 }: GaussianOptions = {}) =>
+	(individual: HyperParams, space: Space = {}): HyperParams =>
+		mutateGenes(individual, space, () => sigma * randn(), flipRate);
