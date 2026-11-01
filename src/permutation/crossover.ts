@@ -1,4 +1,16 @@
+/**
+ * Un ordre : une permutation des entiers `0..n-1`, chacun exactement une fois.
+ * À toi de les faire correspondre à tes villes, tâches, etc.
+ */
 export type Permutation = number[];
+
+/**
+ * Combine deux permutations en une permutation valide. Ne modifie jamais les
+ * parents.
+ *
+ * @param a - Le premier parent.
+ * @param b - Le second parent, de même longueur.
+ */
 export type PermutationCrossover = (
 	a: Permutation,
 	b: Permutation,
@@ -15,6 +27,8 @@ const randomSegment = (n: number): [number, number] => {
  * Order crossover (OX) : le segment [i, j] vient de `a`, le reste est rempli
  * avec les gènes de `b`, dans l'ordre où ils apparaissent après j.
  * Préserve l'ordre relatif : adapté aux problèmes de séquence (TSP).
+ *
+ * @returns Un {@link PermutationCrossover}.
  */
 export const ox = (): PermutationCrossover => (a, b) => {
 	const n = a.length;
@@ -40,6 +54,8 @@ export const ox = (): PermutationCrossover => (a, b) => {
  * Partially mapped crossover (PMX) : le segment [i, j] vient de `a`, les
  * autres positions gardent le gène de `b`, ou son image par la
  * correspondance du segment si ce gène est déjà pris. Préserve les positions.
+ *
+ * @returns Un {@link PermutationCrossover}.
  */
 export const pmx = (): PermutationCrossover => (a, b) => {
 	const n = a.length;

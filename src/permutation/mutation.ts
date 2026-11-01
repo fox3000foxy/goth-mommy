@@ -1,5 +1,11 @@
 import type { Permutation } from "./crossover.js";
 
+/**
+ * Renvoie une copie mutée de la permutation, toujours valide. Ne modifie
+ * jamais l'original.
+ *
+ * @param individual - La permutation à muter.
+ */
 export type PermutationMutator = (individual: Permutation) => Permutation;
 
 /** Deux positions distinctes i < j, ou `null` si la permutation est trop courte. */
@@ -11,7 +17,11 @@ const twoPositions = (n: number): [number, number] | null => {
 	return i < j ? [i, j] : [j, i];
 };
 
-/** Échange deux gènes. */
+/**
+ * Mutation par échange : intervertit deux gènes choisis au hasard.
+ *
+ * @returns Un {@link PermutationMutator}.
+ */
 export const swap = (): PermutationMutator => (individual) => {
 	const copy = [...individual];
 	const pair = twoPositions(copy.length);
@@ -19,7 +29,12 @@ export const swap = (): PermutationMutator => (individual) => {
 	return copy;
 };
 
-/** Inverse l'ordre d'un segment (le « 2-opt » du TSP). */
+/**
+ * Mutation par inversion : inverse l'ordre d'un segment choisi au hasard
+ * (le « 2-opt » du voyageur de commerce).
+ *
+ * @returns Un {@link PermutationMutator}.
+ */
 export const inversion = (): PermutationMutator => (individual) => {
 	const copy = [...individual];
 	const pair = twoPositions(copy.length);

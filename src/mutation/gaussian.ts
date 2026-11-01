@@ -2,6 +2,7 @@ import type { Space } from "../space.js";
 import type { HyperParams } from "../types.js";
 import { mutateGenes } from "./genes.js";
 
+/** Options de {@link gaussian}. */
 export interface GaussianOptions {
 	/** Écart-type du bruit. */
 	sigma?: number;
@@ -14,7 +15,14 @@ const randn = (): number =>
 	Math.sqrt(-2 * Math.log(1 - Math.random())) *
 	Math.cos(2 * Math.PI * Math.random());
 
-/** Bruit gaussien N(0, sigma²). Respecte le domaine de chaque gène. */
+/**
+ * Mutation par bruit gaussien N(0, sigma²). Respecte le domaine de chaque gène.
+ *
+ * @param options - Voir {@link GaussianOptions}.
+ * @returns Un {@link Mutator}.
+ * @example
+ * new GothMommy(seed, 20, score, { mutator: gaussian({ sigma: 0.5 }) });
+ */
 export const gaussian =
 	({ sigma = 1, flipRate = 0.1 }: GaussianOptions = {}) =>
 	(individual: HyperParams, space: Space = {}): HyperParams =>
