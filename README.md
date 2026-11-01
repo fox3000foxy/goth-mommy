@@ -1,6 +1,6 @@
 # GothMommy
 
-Un petit algorithme génétique en TypeScript pour chercher de bons hyperparamètres. Tu fournis un point de départ, le domaine de chaque paramètre et une fonction de score, GothMommy fait évoluer une population jusqu'à trouver mieux.
+Un petit algorithme génétique en TypeScript. Deux classes : `GothMommy` pour chercher de bons hyperparamètres (nombres, entiers, booléens, catégories) et `GothMommyPermutation` pour les problèmes d'ordre (TSP, ordonnancement). Tu fournis un point de départ, ou une taille, et une fonction de score : la population évolue jusqu'à trouver mieux.
 
 Aucune dépendance. Fonctionne avec Bun, ou avec Node (ESM).
 
@@ -87,6 +87,46 @@ type Crossover   = (a: HyperParams, b: HyperParams, space: Space) => HyperParams
 type Initializer = (seed: HyperParams, size: number, space: Space) => HyperParams[];
 ```
 
+## Problèmes d'ordre : `GothMommyPermutation`
+
+Quand la solution est un **ordre** (circuit de villes, séquence de tâches), un individu est une permutation des entiers `0..size-1`. À toi de les faire correspondre à tes villes ou tâches. Les opérateurs classiques (croisement par segment, mutation par échange) créeraient des doublons : cette classe a les siens, qui gardent toujours une permutation valide.
+
+```typescript
+import { GothMommyPermutation, inversion, pmx } from "goth-mommy";
+
+const cities = [[0, 0], [3, 1], [6, 0], [6, 4], [3, 5], [0, 4]] as const;
+
+// longueur du circuit fermé
+const length = (tour: number[]) =>
+	tour.reduce((sum, city, i) => {
+		const [x1, y1] = cities[city]!;
+		const [x2, y2] = cities[tour[(i + 1) % tour.length]!]!;
+		return sum + Math.hypot(x2 - x1, y2 - y1);
+	}, 0);
+
+const score = (population: number[][]) =>
+	population.map((tour) => 1 / (1 + length(tour)));
+
+const ga = new GothMommyPermutation(cities.length, 50, score, {
+	crossover: pmx(),
+	mutator: inversion(),
+});
+
+let last;
+for (const state of ga.iterator(200)) last = state;
+console.log(last.best, length(last.best)); // [5, 0, 1, 2, 3, 4] 20.65
+```
+
+`new GothMommyPermutation(size, populationSize?, scoringFunction?, options?)` a le même `iterator` que `GothMommy`. Ses options : `mutationRate` (0,5), `crossoverRate` (0,9, mets 0 pour désactiver), `elitism` (1), `selector` et les deux briques ci-dessous.
+
+| Brique | Option | Disponibles (défaut en gras) |
+|---|---|---|
+| Croisement | `crossover` | **`ox()`** (garde l'ordre relatif), `pmx()` (garde les positions) |
+| Mutation | `mutator` | **`swap()`** (échange deux gènes), `inversion()` (inverse un segment, le « 2-opt » du TSP) |
+| Sélection | `selector` | **`tournament(3)`**, `proportional()` |
+
+Un croisement de permutations a pour contrat `(a: number[], b: number[]) => number[]`, une mutation `(p: number[]) => number[]`.
+
 ## API
 
 ### `new GothMommy(hyperparams?, populationSize?, scoringFunction?, options?)`
@@ -145,7 +185,7 @@ bun run typecheck
 ## Limites
 
 - Seuls les nombres, booléens et chaînes de **premier niveau** sont supportés : pas d'objets imbriqués.
-- Pas encore d'encodage par permutation (TSP, ordonnancement), ni d'encodages binaire ou Gray.
+- Pas encore d'encodages binaire ou Gray, ni de permutation à contraintes (fenêtres horaires, etc.).
 - Les valeurs d'un `choice` sont comparées avec `===` : pas d'objets dans les listes.
 - Un algorithme génétique ne garantit pas de trouver l'optimum global. Si le résultat stagne, augmente `populationSize` ou `mutationRate`, ou essaie `tournament()`.
 
