@@ -1,7 +1,7 @@
 /**
- * Écrire ses propres briques : un sélecteur par troncature et un mutateur
- * qui ne touche qu'un seul gène à la fois. Il suffit de respecter les types
- * `Selector` et `Mutator`.
+ * Write your own bricks: a truncation selector and a mutator
+ * that only touches one gene at a time. Just match the `Selector`
+ * and `Mutator` types.
  */
 import {
 	GothMommy,
@@ -10,7 +10,7 @@ import {
 	uniform,
 } from "../src/index.js";
 
-/** Ne garde que les `fraction` meilleurs individus comme parents possibles. */
+/** Only keeps the `fraction` best individuals as possible parents. */
 const truncation =
 	(fraction = 0.5): Selector =>
 	(scores, k) => {
@@ -28,7 +28,7 @@ const truncation =
 		);
 	};
 
-/** Mute un seul gène numérique, tiré au hasard. Ne modifie pas l'original. */
+/** Mutates a single numeric gene, picked at random. Does not modify the original. */
 const oneGene =
 	(step = 0.5): Mutator =>
 	(individual) => {
@@ -40,7 +40,7 @@ const oneGene =
 		};
 	};
 
-// Minimiser la distance au point (1, -2, 3)
+// Minimize the distance to the point (1, -2, 3)
 const target = { x: 1, y: -2, z: 3 };
 const distance = (p: Record<string, number | boolean | string>) =>
 	Math.hypot(
@@ -58,4 +58,4 @@ const ga = new GothMommy(
 
 let last;
 for (const state of ga.iterator(1000, 1 / (1 + 1e-3))) last = state;
-console.log(`Trouvé en ${last!.iteration} générations :`, last!.best);
+console.log(`Found in ${last!.iteration} generations:`, last!.best);

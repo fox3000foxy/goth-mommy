@@ -1,10 +1,10 @@
 /**
- * Voyageur de commerce : trouver le plus court circuit passant par toutes
- * les villes. Un individu est une permutation des indices de villes.
+ * Traveling salesperson: find the shortest tour through all
+ * cities. An individual is a permutation of city indices.
  */
 import { GothMommyPermutation, inversion, ox } from "../src/index.js";
 
-// Villes pseudo-aléatoires mais reproductibles
+// Pseudo-random but reproducible cities
 let seed = 42;
 const random = () => (seed = (seed * 1664525 + 1013904223) % 2 ** 32) / 2 ** 32;
 const cities = Array.from({ length: 20 }, () => ({
@@ -33,11 +33,11 @@ for (const state of ga.iterator(500)) {
 	last = state;
 	if (state.iteration % 100 === 0) {
 		console.log(
-			`génération ${state.iteration}: longueur = ${length(state.best).toFixed(1)}`,
+			`generation ${state.iteration}: length = ${length(state.best).toFixed(1)}`,
 		);
 	}
 }
 
-console.log(`\nCircuit initial : ${length(first!.best).toFixed(1)}`);
-console.log(`Circuit final   : ${length(last!.best).toFixed(1)}`);
-console.log(`Ordre des villes : ${last!.best.join(" → ")}`);
+console.log(`\nInitial tour: ${length(first!.best).toFixed(1)}`);
+console.log(`Final tour:   ${length(last!.best).toFixed(1)}`);
+console.log(`City order: ${last!.best.join(" -> ")}`);

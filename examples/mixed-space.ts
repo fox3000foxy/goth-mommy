@@ -1,7 +1,7 @@
 /**
- * Hyperparamètres de types différents : réel, entier, catégorie, booléen.
+ * Mixed-type hyperparameters: real, integer, category, boolean.
  *
- * Le « modèle » est une fausse fonction de perte dont l'optimum est connu :
+ * The "model" is a fake loss function with a known optimum:
  * learningRate = 0.03, layers = 5, activation = "gelu", batchNorm = true, dropout = 0.2.
  */
 import {
@@ -16,7 +16,7 @@ import {
 } from "../src/index.js";
 
 const seed = {
-	logLr: -1, // le learning rate se cherche en échelle log : lr = 10 ** logLr
+	logLr: -1, // the learning rate is searched on a log scale: lr = 10 ** logLr
 	layers: 2,
 	activation: "relu",
 	batchNorm: false,
@@ -52,11 +52,11 @@ for (const state of ga.iterator(300, 1 / (1 + 1e-4))) {
 	last = state;
 	if (state.iteration % 20 === 0) {
 		console.log(
-			`génération ${state.iteration}: perte = ${loss(state.best).toFixed(4)}`,
+			`generation ${state.iteration}: loss = ${loss(state.best).toFixed(4)}`,
 		);
 	}
 }
 
 const best = last!.best;
-console.log(`\nTrouvé en ${last!.iteration} générations :`);
+console.log(`\nFound in ${last!.iteration} generations:`);
 console.log({ ...best, learningRate: 10 ** (best.logLr as number) });

@@ -1,6 +1,6 @@
 /**
- * Sac à dos : quels objets emporter pour maximiser la valeur sans dépasser
- * la capacité ? Un gène booléen par objet (true = dans le sac).
+ * Knapsack: which items to pack to maximize value without exceeding
+ * the capacity? One boolean gene per item (true = in the bag).
  */
 import {
 	GothMommy,
@@ -34,13 +34,13 @@ const totals = (bag: HyperParams) =>
 		{ weight: 0, value: 0 },
 	);
 
-// Valeur du sac, avec une pénalité si on dépasse la capacité. Toujours >= 0.
+// Bag value, with a penalty when over capacity. Always >= 0.
 const score = (bag: HyperParams) => {
 	const { weight, value } = totals(bag);
 	return Math.max(0, value - 10 * Math.max(0, weight - capacity));
 };
 
-// Solution exacte par force brute (2^12 combinaisons), pour comparer
+// Exact solution by brute force (2^12 combinations), for comparison
 let optimum = 0;
 for (let mask = 0; mask < 1 << items.length; mask++) {
 	const bag = Object.fromEntries(
@@ -59,7 +59,7 @@ let last;
 for (const state of ga.iterator(300, optimum)) last = state;
 
 const found = totals(last!.best);
-console.log(`Optimum exact : valeur ${optimum}`);
+console.log(`Exact optimum: value ${optimum}`);
 console.log(
-	`GothMommy     : valeur ${found.value}, poids ${found.weight}/${capacity}, en ${last!.iteration} générations`,
+	`GothMommy      : value ${found.value}, weight ${found.weight}/${capacity}, in ${last!.iteration} generations`,
 );
