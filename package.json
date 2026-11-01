@@ -26,14 +26,16 @@
 	"scripts": {
 		"prepack": "npm run build",
 		"build:watch": "tsc --watch",
-		"typecheck": "tsc --noEmit",
-		"example": "bun src/example.ts",
+		"typecheck": "tsc --noEmit && tsc --noEmit -p examples",
+		"example": "bun examples/basic.ts",
+		"examples": "bun examples/basic.ts && bun examples/mixed-space.ts && bun examples/knapsack.ts && bun examples/tsp.ts && bun examples/custom-brick.ts",
 		"format": "bunx --bun @biomejs/biome format --write ./src",
 		"check": "bunx --bun @biomejs/biome check ./src",
 		"lint": "bunx --bun @biomejs/biome lint ./src",
 		"lint:write": "bunx --bun @biomejs/biome lint --write ./src",
 		"test": "bun test",
 		"build": "tsc --project tsconfig.json",
+		"docs": "typedoc",
 		"deploy:npm": "npm publish --access public",
 		"publish-package": "bash ./scripts/publish-package.sh"
 	},
@@ -45,6 +47,7 @@
 		"globals": "^17.5.0",
 		"jiti": "^2.6.1",
 		"tsup": "^8.5.1",
+		"typedoc": "^0.28.20",
 		"typescript-eslint": "^8.58.2"
 	},
 	"peerDependencies": {

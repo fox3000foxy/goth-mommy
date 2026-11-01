@@ -23,7 +23,15 @@ for (const state of ga.iterator(2000, 1 / (1 + 1e-8))) {
 }
 ```
 
-L'exemple complet du dépôt se lance avec `bun run example`.
+Les exemples du dépôt sont dans `examples/` : `bun run example` lance le premier, `bun run examples` les lance tous.
+
+| Fichier | Ce qu'il montre |
+|---|---|
+| `basic.ts` | Le démarrage rapide ci-dessus |
+| `mixed-space.ts` | Réel, entier, catégorie et booléen dans le même individu, avec un learning rate cherché en échelle log |
+| `knapsack.ts` | Sac à dos : un gène booléen par objet, comparé à la solution exacte par force brute |
+| `tsp.ts` | Voyageur de commerce sur 20 villes avec `GothMommyPermutation` |
+| `custom-brick.ts` | Écrire son propre sélecteur (troncature) et son propre mutateur |
 
 ## Encodages : le `space`
 
@@ -172,6 +180,14 @@ C'est la partie la plus importante :
 5. **Mutation** : chaque enfant est muté avec probabilité `mutationRate`, en respectant le domaine de chaque gène.
 
 La population initiale contient la graine telle quelle, et des individus tirés dans les domaines des gènes pour les autres.
+
+## Documentation de l'API
+
+Chaque fonction, type et option est documenté avec TSDoc, et la référence HTML se génère avec [TypeDoc](https://typedoc.org) :
+
+```bash
+bun run docs      # génère docs/ (ouvre docs/index.html)
+```
 
 ## Développement
 
