@@ -1,6 +1,7 @@
 import { spread } from "./initialization/spread.js";
 import { perturb } from "./mutation/perturb.js";
 import { proportional } from "./selection/proportional.js";
+import { type Space, inferSpace, validateSeed } from "./space.js";
 import type {
 	Crossover,
 	HyperParams,
@@ -13,6 +14,14 @@ import type {
 } from "./types.js";
 
 export type * from "./types.js";
+export {
+	type Gene,
+	type Space,
+	bool,
+	choice,
+	int,
+	real,
+} from "./space.js";
 export { arithmetic } from "./crossover/arithmetic.js";
 export { uniform } from "./crossover/uniform.js";
 export { spread } from "./initialization/spread.js";
@@ -22,6 +31,12 @@ export { proportional } from "./selection/proportional.js";
 export { tournament } from "./selection/tournament.js";
 
 export interface GothMommyOptions {
+	/**
+	 * Domaine de chaque hyperparamètre (`real`, `int`, `bool`, `choice`).
+	 * Les clés absentes sont déduites de la graine (nombre → réel, booléen → bool,
+	 * chaîne → constante).
+	 */
+	space?: Space;
 	/** Probabilité qu'un enfant soit muté (0..1). Défaut : 0.5. */
 	mutationRate?: number;
 	/** Nombre de meilleurs individus copiés tels quels. Défaut : 1. */
@@ -37,6 +52,7 @@ export interface GothMommyOptions {
 
 export class GothMommy {
 	private population: Population;
+	private space: Space;
 	private selector: Selector;
 	private mutator: Mutator;
 	private crossover: Crossover | undefined;
@@ -51,6 +67,8 @@ export class GothMommy {
 			population.map(() => 0),
 		options: GothMommyOptions = {},
 	) {
+		this.space = { ...inferSpace(hyperparams), ...options.space };
+		validateSeed(hyperparams, this.space);
 		this.selector = options.selector ?? proportional();
 		this.mutator = options.mutator ?? perturb();
 		this.crossover = options.crossover;
@@ -60,6 +78,7 @@ export class GothMommy {
 		this.population = (options.initializer ?? spread())(
 			hyperparams,
 			populationSize,
+			this.space,
 		);
 	}
 
@@ -78,10 +97,16 @@ export class GothMommy {
 			const a = this.population[parents[this.crossover ? 2 * c : c]!]!;
 			let child = { ...a };
 			if (this.crossover && Math.random() < this.crossoverRate) {
-				child = this.crossover(a, this.population[parents[2 * c + 1]!]!);
+				child = this.crossover(
+					a,
+					this.population[parents[2 * c + 1]!]!,
+					this.space,
+				);
 			}
 			next.push(
-				Math.random() < this.mutationRate ? this.mutator(child) : child,
+				Math.random() < this.mutationRate
+					? this.mutator(child, this.space)
+					: child,
 			);
 		}
 		return next;
