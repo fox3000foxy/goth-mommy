@@ -1,5 +1,6 @@
 import type { Score, Selector } from "./types.js";
 
+/** Réglages du moteur d'évolution (interne). */
 export interface EngineConfig<T> {
 	scoring: (population: T[]) => Score;
 	selector: Selector;
@@ -14,11 +15,17 @@ export interface EngineConfig<T> {
 	elitism: number;
 }
 
+/** Ce que produit l'`iterator` à chaque génération. */
 export interface GenerationState<T> {
+	/** Les individus de cette génération. */
 	population: T[];
+	/** Leurs scores, dans le même ordre. */
 	scores: Score;
+	/** Numéro de la génération, à partir de 0. */
 	iteration: number;
+	/** Le meilleur score de la génération. */
 	bestScore: number;
+	/** L'individu qui a obtenu `bestScore`. */
 	best: T;
 }
 

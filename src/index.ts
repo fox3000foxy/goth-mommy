@@ -13,9 +13,13 @@ import type {
 } from "./types.js";
 
 export type * from "./types.js";
-export type { EngineConfig, GenerationState } from "./engine.js";
+export type { GenerationState } from "./engine.js";
 export {
+	type BoolGene,
+	type ChoiceGene,
 	type Gene,
+	type IntGene,
+	type RealGene,
 	type Space,
 	bool,
 	choice,
@@ -42,6 +46,7 @@ export {
 	swap,
 } from "./permutation/index.js";
 
+/** Options de {@link GothMommy}. Toutes sont facultatives. */
 export interface GothMommyOptions {
 	/**
 	 * Domaine de chaque hyperparamètre (`real`, `int`, `bool`, `choice`).
@@ -57,14 +62,44 @@ export interface GothMommyOptions {
 	crossoverRate?: number;
 	/** Absent par défaut : pas de croisement, un seul parent par enfant. */
 	crossover?: Crossover;
+	/** Choix des parents. Défaut : `proportional()`. */
 	selector?: Selector;
+	/** Mutation d'un individu. Défaut : `perturb()`. */
 	mutator?: Mutator;
+	/** Construction de la population de départ. Défaut : `spread()`. */
 	initializer?: Initializer;
 }
 
+/**
+ * Algorithme génétique pour chercher de bons hyperparamètres.
+ *
+ * Tu fournis un individu de départ, le domaine de chaque paramètre et une
+ * fonction de score (plus grand = meilleur) ; la population évolue génération
+ * après génération.
+ *
+ * @example
+ * ```ts
+ * // Trouver x tel que x² + 2x + 1 = 0 (racine double en x = -1)
+ * const score = (population: HyperParams[]) =>
+ *   population.map((p) => 1 / (1 + Math.abs((p.x as number) ** 2 + 2 * (p.x as number) + 1)));
+ *
+ * const ga = new GothMommy({ x: 5 }, 20, score);
+ * for (const state of ga.iterator(2000, 0.999999)) {
+ *   console.log(state.iteration, state.best);
+ * }
+ * ```
+ */
 export class GothMommy {
 	private engine: Engine<HyperParams>;
 
+	/**
+	 * @param hyperparams - L'individu de départ (la graine). Il doit respecter
+	 * son domaine, sinon le constructeur lève une erreur.
+	 * @param populationSize - Nombre d'individus par génération. Défaut : 10.
+	 * @param scoringFunction - Évalue la population. Défaut : des scores à 0.
+	 * @param options - Domaines, taux et briques. Voir {@link GothMommyOptions}.
+	 * @throws Si un gène du `space` manque dans `hyperparams` ou en sort.
+	 */
 	constructor(
 		hyperparams: HyperParams = {},
 		populationSize: number = 10,
@@ -90,7 +125,14 @@ export class GothMommy {
 		);
 	}
 
-	/** S'arrête quand le meilleur score brut atteint `threshold`, ou après `maxIterations`. */
+	/**
+	 * Fait évoluer la population, une génération par itération.
+	 *
+	 * @param maxIterations - Garde-fou contre les boucles infinies. Défaut : 1000.
+	 * @param threshold - S'arrête quand le meilleur score brut l'atteint.
+	 * Défaut : `Infinity` (jamais).
+	 * @returns Un état par génération : population, scores, meilleur individu.
+	 */
 	iterator(maxIterations?: number, threshold?: number) {
 		return this.engine.iterator(maxIterations, threshold);
 	}

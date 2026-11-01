@@ -1,29 +1,86 @@
 import type { HyperParams } from "./types.js";
 
+/** Nombre réel, éventuellement borné. Voir {@link real}. */
+export interface RealGene {
+	/** Discriminant : toujours `"real"`. */
+	type: "real";
+	/** Borne basse (`-Infinity` si non bornée). */
+	min: number;
+	/** Borne haute (`Infinity` si non bornée). */
+	max: number;
+}
+
+/** Entier dans un intervalle. Voir {@link int}. */
+export interface IntGene {
+	/** Discriminant : toujours `"int"`. */
+	type: "int";
+	/** Plus petite valeur autorisée. */
+	min: number;
+	/** Plus grande valeur autorisée. */
+	max: number;
+}
+
+/** Booléen. Voir {@link bool}. */
+export interface BoolGene {
+	/** Discriminant : toujours `"bool"`. */
+	type: "bool";
+}
+
+/** Une valeur parmi une liste. Voir {@link choice}. */
+export interface ChoiceGene {
+	/** Discriminant : toujours `"choice"`. */
+	type: "choice";
+	/** Les valeurs possibles, comparées avec `===`. */
+	values: readonly (number | boolean | string)[];
+}
+
 /** Domaine d'un gène : décide comment il est initialisé, muté et croisé. */
-export type Gene =
-	| { type: "real"; min: number; max: number }
-	| { type: "int"; min: number; max: number }
-	| { type: "bool" }
-	| { type: "choice"; values: readonly (number | boolean | string)[] };
+export type Gene = RealGene | IntGene | BoolGene | ChoiceGene;
 
 /** Un domaine par hyperparamètre. */
 export type Space = Record<string, Gene>;
 
-/** Nombre réel, borné ou non (`real()` = tout ℝ). */
+/**
+ * Gène réel, borné ou non.
+ *
+ * @param min - Borne basse. Défaut : `-Infinity`.
+ * @param max - Borne haute. Défaut : `Infinity`.
+ * @example
+ * real(1e-5, 1) // learning rate
+ */
 export const real = (min = -Infinity, max = Infinity): Gene => ({
 	type: "real",
 	min,
 	max,
 });
-/** Entier dans [min, max]. */
+/**
+ * Gène entier dans `[min, max]`. À la mutation, il bouge toujours d'au moins ±1.
+ *
+ * @param min - Plus petite valeur autorisée.
+ * @param max - Plus grande valeur autorisée.
+ * @example
+ * int(1, 8) // nombre de couches
+ */
 export const int = (min: number, max: number): Gene => ({
 	type: "int",
 	min,
 	max,
 });
+/**
+ * Gène booléen.
+ *
+ * @example
+ * bool() // batch normalization oui/non
+ */
 export const bool = (): Gene => ({ type: "bool" });
-/** Une valeur parmi une liste (catégories, chaînes, …). */
+
+/**
+ * Gène catégoriel : une valeur parmi une liste (chaînes, nombres, booléens).
+ *
+ * @param values - Les valeurs possibles, comparées avec `===`.
+ * @example
+ * choice(["relu", "tanh", "gelu"])
+ */
 export const choice = (
 	values: readonly (number | boolean | string)[],
 ): Gene => ({
