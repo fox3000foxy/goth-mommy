@@ -1,18 +1,18 @@
 # GothMommy
 
-Un petit algorithme génétique en TypeScript. Deux classes : `GothMommy` pour chercher de bons hyperparamètres (nombres, entiers, booléens, catégories) et `GothMommyPermutation` pour les problèmes d'ordre (TSP, ordonnancement). Tu fournis un point de départ, ou une taille, et une fonction de score : la population évolue jusqu'à trouver mieux.
+A small genetic algorithm library in TypeScript. Two classes: `GothMommy` for searching good hyperparameters (numbers, integers, booleans, categories) and `GothMommyPermutation` for ordering problems (TSP, scheduling). You provide a starting point, or a size, plus a scoring function: the population evolves until it finds something better.
 
-Aucune dépendance. Fonctionne avec Bun, ou avec Node (ESM).
+Zero dependencies. Works with Bun, or with Node (ESM).
 
-## Démarrage rapide
+## Quick start
 
 ```typescript
 import { GothMommy, type HyperParams } from "goth-mommy";
 
-// Trouver x tel que x² + 2x + 1 = 0 (racine double en x = -1)
+// Find x such that x^2 + 2x + 1 = 0 (double root at x = -1)
 const fx = (x: number) => x * x + 2 * x + 1;
 
-// Plus grand = meilleur : vaut 1 quand fx(x) = 0, tend vers 0 sinon
+// Higher is better: equals 1 when fx(x) = 0, tends to 0 otherwise
 const score = (population: HyperParams[]) =>
 	population.map((ind) => 1 / (1 + Math.abs(fx(ind.x as number))));
 
@@ -23,19 +23,19 @@ for (const state of ga.iterator(2000, 1 / (1 + 1e-8))) {
 }
 ```
 
-Les exemples du dépôt sont dans `examples/` : `bun run example` lance le premier, `bun run examples` les lance tous.
+Repo examples live in `examples/`: `bun run example` runs the first one, `bun run examples` runs all of them.
 
-| Fichier | Ce qu'il montre |
+| File | What it shows |
 |---|---|
-| `basic.ts` | Le démarrage rapide ci-dessus |
-| `mixed-space.ts` | Réel, entier, catégorie et booléen dans le même individu, avec un learning rate cherché en échelle log |
-| `knapsack.ts` | Sac à dos : un gène booléen par objet, comparé à la solution exacte par force brute |
-| `tsp.ts` | Voyageur de commerce sur 20 villes avec `GothMommyPermutation` |
-| `custom-brick.ts` | Écrire son propre sélecteur (troncature) et son propre mutateur |
+| `basic.ts` | The quick start above |
+| `mixed-space.ts` | Real, integer, category and boolean in one individual, with a learning rate searched on a log scale |
+| `knapsack.ts` | Knapsack: one boolean gene per item, compared against the exact brute-force solution |
+| `tsp.ts` | Traveling salesman over 20 cities with `GothMommyPermutation` |
+| `custom-brick.ts` | Writing a custom selector (truncation) and a custom mutator |
 
-## Encodages : le `space`
+## Encodings: the `space`
 
-Chaque hyperparamètre a un **domaine** qui décide comment il est initialisé, muté et croisé. Tu les déclares dans l'option `space` :
+Each hyperparameter has a **domain** that controls how it is initialized, mutated and crossed over. Declare them in the `space` option:
 
 ```typescript
 import { GothMommy, bool, choice, int, real } from "goth-mommy";
@@ -44,33 +44,33 @@ const seed = { lr: 0.01, layers: 4, activation: "relu", batchNorm: true };
 
 const ga = new GothMommy(seed, 30, score, {
 	space: {
-		lr: real(1e-5, 1),                         // réel borné
-		layers: int(1, 8),                         // entier
-		activation: choice(["relu", "tanh", "gelu"]), // catégorie
-		batchNorm: bool(),                         // booléen
+		lr: real(1e-5, 1),                         // bounded real
+		layers: int(1, 8),                         // integer
+		activation: choice(["relu", "tanh", "gelu"]), // category
+		batchNorm: bool(),                         // boolean
 	},
 });
 ```
 
-| Domaine | Valeur | Initialisation | Mutation |
+| Domain | Value | Initialization | Mutation |
 |---|---|---|---|
-| `real(min?, max?)` | nombre | uniforme dans `[min, max]` si borné, sinon `±amplitude` autour de la graine | bruit, puis ramené dans les bornes |
-| `int(min, max)` | entier | entier uniforme | bruit arrondi, **toujours au moins ±1** |
-| `bool()` | booléen | pile ou face | inversion avec probabilité `flipRate` |
-| `choice([...])` | une valeur de la liste | tirage uniforme | autre valeur de la liste avec probabilité `flipRate` |
+| `real(min?, max?)` | number | uniform in `[min, max]` if bounded, else `+/-amplitude` around the seed | noise, then clamped to bounds |
+| `int(min, max)` | integer | uniform integer | rounded noise, **always at least +/-1** |
+| `bool()` | boolean | coin flip | flip with probability `flipRate` |
+| `choice([...])` | one value from the list | uniform draw | another value from the list with probability `flipRate` |
 
-Sans `space`, les domaines sont déduits de la graine : un nombre est un réel non borné, un booléen est un `bool()`, et une chaîne est une constante (jamais modifiée). La graine doit respecter son domaine, sinon le constructeur lève une erreur.
+Without `space`, domains are inferred from the seed: a number is an unbounded real, a boolean is a `bool()`, and a string is a constant (never mutated). The seed must satisfy its domain, otherwise the constructor throws an error.
 
-## Les briques
+## The bricks
 
-GothMommy assemble des briques interchangeables, chacune étant une simple fonction. Tout est exporté depuis le paquet.
+GothMommy combines interchangeable bricks, each a plain function. Everything is exported from the package.
 
-| Brique | Option | Disponibles (défaut en gras) |
+| Brick | Option | Available (default in bold) |
 |---|---|---|
-| Sélection | `selector` | **`proportional()`** (roulette, scores ≥ 0), `tournament(size = 3)` (accepte les scores négatifs) |
-| Croisement | `crossover` | aucun par défaut, `uniform()`, `arithmetic()` |
-| Mutation | `mutator` | **`perturb({ strength, flipRate })`** (bruit uniforme multi-échelle), `gaussian({ sigma, flipRate })` |
-| Initialisation | `initializer` | **`spread(amplitude = 10)`** |
+| Selection | `selector` | **`proportional()`** (roulette, scores >= 0), `tournament(size = 3)` (accepts negative scores) |
+| Crossover | `crossover` | none by default, `uniform()`, `arithmetic()` |
+| Mutation | `mutator` | **`perturb({ strength, flipRate })`** (multi-scale uniform noise), `gaussian({ sigma, flipRate })` |
+| Initialization | `initializer` | **`spread(amplitude = 10)`** |
 
 ```typescript
 import { GothMommy, arithmetic, gaussian, tournament } from "goth-mommy";
@@ -82,29 +82,29 @@ new GothMommy(seed, 20, score, {
 });
 ```
 
-Sans `crossover`, chaque enfant vient d'un seul parent (sélection + mutation). Avec un `crossover`, le sélecteur choisit deux parents par enfant.
+Without `crossover`, each child comes from a single parent (selection + mutation). With a `crossover`, the selector picks two parents per child.
 
-### Écrire sa propre brique
+### Writing your own brick
 
-Ce sont les contrats de `types.ts`. Une brique ne doit jamais modifier ses arguments.
+These are the contracts from `types.ts`. A brick must never mutate its arguments.
 
 ```typescript
-type Selector    = (scores: number[], k: number) => number[];                        // k indices de parents
+type Selector    = (scores: number[], k: number) => number[];                        // k parent indices
 type Mutator     = (individual: HyperParams, space: Space) => HyperParams;
 type Crossover   = (a: HyperParams, b: HyperParams, space: Space) => HyperParams;
 type Initializer = (seed: HyperParams, size: number, space: Space) => HyperParams[];
 ```
 
-## Problèmes d'ordre : `GothMommyPermutation`
+## Ordering problems: `GothMommyPermutation`
 
-Quand la solution est un **ordre** (circuit de villes, séquence de tâches), un individu est une permutation des entiers `0..size-1`. À toi de les faire correspondre à tes villes ou tâches. Les opérateurs classiques (croisement par segment, mutation par échange) créeraient des doublons : cette classe a les siens, qui gardent toujours une permutation valide.
+When the solution is an **order** (city tour, task sequence), an individual is a permutation of the integers `0..size-1`. You map them to your cities or tasks. Classic operators (segment crossover, swap mutation) would create duplicates: this class has its own, which always keep a valid permutation.
 
 ```typescript
 import { GothMommyPermutation, inversion, pmx } from "goth-mommy";
 
 const cities = [[0, 0], [3, 1], [6, 0], [6, 4], [3, 5], [0, 4]] as const;
 
-// longueur du circuit fermé
+// closed tour length
 const length = (tour: number[]) =>
 	tour.reduce((sum, city, i) => {
 		const [x1, y1] = cities[city]!;
@@ -125,71 +125,71 @@ for (const state of ga.iterator(200)) last = state;
 console.log(last.best, length(last.best)); // [5, 0, 1, 2, 3, 4] 20.65
 ```
 
-`new GothMommyPermutation(size, populationSize?, scoringFunction?, options?)` a le même `iterator` que `GothMommy`. Ses options : `mutationRate` (0,5), `crossoverRate` (0,9, mets 0 pour désactiver), `elitism` (1), `selector` et les deux briques ci-dessous.
+`new GothMommyPermutation(size, populationSize?, scoringFunction?, options?)` has the same `iterator` as `GothMommy`. Its options: `mutationRate` (0.5), `crossoverRate` (0.9, set 0 to disable), `elitism` (1), `selector`, and the two bricks below.
 
-| Brique | Option | Disponibles (défaut en gras) |
+| Brick | Option | Available (default in bold) |
 |---|---|---|
-| Croisement | `crossover` | **`ox()`** (garde l'ordre relatif), `pmx()` (garde les positions) |
-| Mutation | `mutator` | **`swap()`** (échange deux gènes), `inversion()` (inverse un segment, le « 2-opt » du TSP) |
-| Sélection | `selector` | **`tournament(3)`**, `proportional()` |
+| Crossover | `crossover` | **`ox()`** (keeps relative order), `pmx()` (keeps positions) |
+| Mutation | `mutator` | **`swap()`** (swaps two genes), `inversion()` (reverses a segment, the TSP "2-opt") |
+| Selection | `selector` | **`tournament(3)`**, `proportional()` |
 
-Un croisement de permutations a pour contrat `(a: number[], b: number[]) => number[]`, une mutation `(p: number[]) => number[]`.
+A permutation crossover has contract `(a: number[], b: number[]) => number[]`, a mutation `(p: number[]) => number[]`.
 
 ## API
 
 ### `new GothMommy(hyperparams?, populationSize?, scoringFunction?, options?)`
 
-| Paramètre | Défaut | Rôle |
+| Parameter | Default | Role |
 |---|---|---|
-| `hyperparams` | `{}` | Individu de départ (la graine). |
-| `populationSize` | `10` | Nombre d'individus par génération. |
-| `scoringFunction` | scores à 0 | Reçoit toute la population, renvoie un score par individu (même ordre). |
-| `options` | `{}` | Voir ci-dessous. |
+| `hyperparams` | `{}` | Starting individual (the seed). |
+| `populationSize` | `10` | Individuals per generation. |
+| `scoringFunction` | zero scores | Receives the whole population, returns one score per individual (same order). |
+| `options` | `{}` | See below. |
 
-| Option | Défaut | Rôle |
+| Option | Default | Role |
 |---|---|---|
-| `space` | déduit de la graine | Domaine de chaque hyperparamètre. |
-| `mutationRate` | `0.5` | Probabilité qu'un enfant soit muté (0 à 1). |
-| `crossoverRate` | `0.7` | Probabilité de croiser deux parents (sans effet sans `crossover`). |
-| `elitism` | `1` | Nombre de meilleurs individus copiés tels quels. |
-| `selector`, `crossover`, `mutator`, `initializer` | voir les briques | |
+| `space` | inferred from seed | Domain of each hyperparameter. |
+| `mutationRate` | `0.5` | Probability that a child is mutated (0 to 1). |
+| `crossoverRate` | `0.7` | Probability of crossing two parents (no effect without `crossover`). |
+| `elitism` | `1` | Number of best individuals copied as-is. |
+| `selector`, `crossover`, `mutator`, `initializer` | see bricks | |
 
 ### `iterator(maxIterations?, threshold?)`
 
-Générateur qui produit un état par génération. Il s'arrête quand le meilleur score atteint `threshold` ou après `maxIterations` (défauts : `1000` et `Infinity`).
+Generator yielding one state per generation. It stops when the best score reaches `threshold` or after `maxIterations` (defaults: `1000` and `Infinity`).
 
-Chaque état contient `population`, `scores`, `iteration`, `bestScore` et `best` (le meilleur individu).
+Each state holds `population`, `scores`, `iteration`, `bestScore` and `best` (the best individual).
 
-## Écrire une bonne fonction de score
+## Writing a good scoring function
 
-C'est la partie la plus importante :
+This is the most important part:
 
-- **Plus grand = meilleur.** Pour minimiser une erreur, transforme-la, par exemple `1 / (1 + erreur)`.
-- **Scores ≥ 0 avec `proportional()`**, car la sélection est proportionnelle au score. Avec `tournament()`, les scores négatifs sont acceptés.
-- **Choisis un seuil réaliste** pour `threshold`, lié à la précision voulue plutôt qu'une valeur arbitraire.
-- La fonction est appelée **une seule fois par génération**, avec toute la population.
+- **Higher is better.** To minimize an error, transform it, e.g. `1 / (1 + error)`.
+- **Scores >= 0 with `proportional()`**, since selection is proportional to score. With `tournament()`, negative scores are accepted.
+- **Pick a realistic threshold** for `threshold`, tied to the wanted precision rather than an arbitrary value.
+- The function is called **once per generation**, with the whole population.
 
-## Comment ça marche
+## How it works
 
-À chaque génération :
+Each generation:
 
-1. **Évaluation** : la fonction de score est appelée une fois.
-2. **Élitisme** : les `elitism` meilleurs individus passent tels quels.
-3. **Sélection** : le `selector` choisit les parents des places restantes.
-4. **Croisement** (si configuré) : deux parents donnent un enfant, avec probabilité `crossoverRate`.
-5. **Mutation** : chaque enfant est muté avec probabilité `mutationRate`, en respectant le domaine de chaque gène.
+1. **Evaluation**: the scoring function is called once.
+2. **Elitism**: the `elitism` best individuals pass through as-is.
+3. **Selection**: the `selector` picks the parents of the remaining slots.
+4. **Crossover** (if configured): two parents produce one child, with probability `crossoverRate`.
+5. **Mutation**: each child is mutated with probability `mutationRate`, respecting each gene domain.
 
-La population initiale contient la graine telle quelle, et des individus tirés dans les domaines des gènes pour les autres.
+The initial population holds the seed as-is, plus individuals drawn from the gene domains for the rest.
 
-## Documentation de l'API
+## API reference
 
-Chaque fonction, type et option est documenté avec TSDoc, et la référence HTML se génère avec [TypeDoc](https://typedoc.org) :
+Each function, type and option is documented with TSDoc, and the HTML reference is generated with [TypeDoc](https://typedoc.org):
 
 ```bash
-bun run docs      # génère docs/ (ouvre docs/index.html)
+bun run docs      # generates docs/ (open docs/index.html)
 ```
 
-## Développement
+## Development
 
 ```bash
 bun install
@@ -198,13 +198,13 @@ bun run check     # lint + format (Biome)
 bun run typecheck
 ```
 
-## Limites
+## Limits
 
-- Seuls les nombres, booléens et chaînes de **premier niveau** sont supportés : pas d'objets imbriqués.
-- Pas encore d'encodages binaire ou Gray, ni de permutation à contraintes (fenêtres horaires, etc.).
-- Les valeurs d'un `choice` sont comparées avec `===` : pas d'objets dans les listes.
-- Un algorithme génétique ne garantit pas de trouver l'optimum global. Si le résultat stagne, augmente `populationSize` ou `mutationRate`, ou essaie `tournament()`.
+- Only **top-level** numbers, booleans and strings are supported: no nested objects.
+- No binary or Gray encodings yet, no constrained permutation (time windows, etc.).
+- `choice` values are compared with `===`: no objects in the lists.
+- A genetic algorithm does not guarantee the global optimum. If results stall, raise `populationSize` or `mutationRate`, or try `tournament()`.
 
-## Licence
+## License
 
 MIT

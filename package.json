@@ -2,7 +2,7 @@
 	"name": "goth-mommy",
 	"version": "0.0.3",
 	"license": "MIT",
-	"description": "Template de module TypeScript publiable sur npm avec build, checks de qualite et pipeline GitHub Actions.",
+	"description": "Small zero-dependency genetic algorithm library in TypeScript for hyperparameter search and ordering problems (TSP, scheduling).",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/fox3000foxy/goth-mommy.git"
