@@ -18,3 +18,6 @@ export type Mutator = (individual: HyperParams) => HyperParams;
 
 /** Construit la population de départ à partir d'un individu de référence. */
 export type Initializer = (seed: HyperParams, size: number) => Population;
+
+/** Combine deux parents en un enfant. Ne modifie jamais les parents. */
+export type Crossover = (a: HyperParams, b: HyperParams) => HyperParams;
