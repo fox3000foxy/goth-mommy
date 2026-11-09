@@ -610,7 +610,19 @@ Each part gets the encoding that fits it. In exchange, you write and tune operat
 
 ---
 
-III. Cross-over
+## III. Crossover
+### 1. Single-Point or Multi-Point Crossover
+**a. Single-Point Crossover**
+This is the classic, the one you'll find in pretty much every demo. It works simply.
+Chromosomes (see II. Encoding) are strings of **fixed** length $L$.
+* We select parents (see I. Selection) and run a probability test ($P_c$) on them:
+Crossover is not systematic (same goes for every method in this section, so I won't repeat myself, tough luck for the three devs dozing off in the back row). We set a crossover rate, usually between 0.6 and 0.9. If a random number falls below this rate, crossover happens. Otherwise, the kids are carbon copies of Mommy and Daddy.
+* If crossover does happen, we pick a random index $k$ between 1 and $L-1$. This index cuts the chromosome into two parts: the "head" and the "tail". Yes, head. Yes, tail. No comment for the devs with dirty minds, I know you're there.
+* With this head and tail, we perform a *swap*. Sorry to disappoint, but nobody is giving head here, we're just trading it:
+    * **Child 1** takes the head from Parent 1 and the tail from Parent 2.
+    * **Child 2** does the opposite: head from Parent 2, tail from Parent 1.
+
+
 IV. Mutation 
 V. Fitness
 VI. Initialise the population
