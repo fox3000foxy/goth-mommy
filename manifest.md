@@ -620,6 +620,8 @@ This is the classic method, found in most introductory implementations. It appli
     * **Child 1** takes the prefix from Parent 1 and the suffix from Parent 2.
     * **Child 2** takes the prefix from Parent 2 and the suffix from Parent 1.
 
+> **In goth-mommy**: no single-point brick. A `HyperParams` individual is a key-value map with no meaningful gene order, so cutting at an index $k$ would be arbitrary. Use `uniform()` (per-gene coin flip) or `arithmetic()` (convex combination on numbers) instead. Note also that a `Crossover` in this library returns a single child per call: the engine invokes it once per free slot.
+
 
 IV. Mutation 
 V. Fitness
