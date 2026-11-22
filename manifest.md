@@ -277,112 +277,121 @@ Each piece covers a weakness of another: elitism keeps the best solution that a 
 The encoding decides what a chromosome *is*, and from there which operators make sense. Get it wrong and no amount of tuning saves the run: a crossover that cannot keep a child valid, or a mutation that jumps across the whole search space, will fight you forever.
 
 ### 1. Binary encoding
+**a. Plain bits**
+This is one of the very first gene encodings I came across. A classic, shown in most demonstrations.
+The principle is archaic but effective: the gene is made of 1s and 0s. By the way, genes are also called "chromosomes".
+* You can think of the 1 and the 0 as a switch, on/off. That's impractical for complex explorations such as searching the hyperparameters of an MLP (I tried... and I really don't recommend it).
+* However, this technique works with all the classic operators: single-point, two-point, and uniform crossover (see III. Crossover), bit-flip mutation.
 
-The oldest one, from Holland's GAs. A chromosome is a string of 0s and 1s, one bit per gene. It is the natural choice for yes/no decisions (take an item or not, turn an option on or off), and every classical operator works on it: single-point, two-point and uniform crossover, bit-flip mutation.
 
-It can also carry a real number. $L$ bits encode $x\in[x_{\min},x_{\max}]$ as
+**b. Real numbers in binary**
+Yes, you can stuff a real number into bits. Should you? We'll see.
+* Take $L$ bits and a range $[x_{\min},x_{\max}]$. The bits $b$ decode as:
 
 $$x = x_{\min} + \frac{\text{int}(b)}{2^{L}-1}\,(x_{\max}-x_{\min}),\qquad \Delta x = \frac{x_{\max}-x_{\min}}{2^{L}-1}$$
 
-where $\text{int}(b)$ is the integer value of the bits and $\Delta x$ the resolution you get. That is where the trouble starts. Precision costs bits, and the bit neighborhood is not the number neighborhood: 7 = `0111` and 8 = `1000` differ by 4 bits (a *Hamming cliff*), while flipping the top bit jumps half the range.
+* $\text{int}(b)$ is the integer value of the bits, $\Delta x$ is the resolution you get.
+* However, this method adds a problem: with large numbers, a small step in value can require many bit flips.
+    * For example: 7 = `0111` and 8 = `1000` are neighbouring numbers, yet they differ by 4 bits. That's a *Hamming cliff*, and your mutation falls into the void.
 
-**Gray code** fixes the cliff: two consecutive values always differ by exactly one bit.
+
+**c. Gray code**
+This is the fix for the problem above: we try to change only one bit from one number to the next.
+* Encoding and decoding take this very dark-looking mathematical form:
 
 $$g_{0}=b_{0},\quad g_{i}=b_{i-1}\oplus b_{i}\qquad\text{and back:}\qquad b_{0}=g_{0},\quad b_{i}=b_{i-1}\oplus g_{i}$$
 
-On an integer: `g = b ^ (b >> 1)`. 7 becomes `0100`, 8 becomes `1100`: one bit apart. So a ±1 step is always one flip away. The converse is false, though: one flip can still land far away, and Gray code does not guarantee faster convergence. It costs a decoding step.
+* On an integer it's a one-liner: `g = b ^ (b >> 1)`. 7 becomes `0100`, 8 becomes `1100`: one bit apart. A ±1 step is always one flip away.
+* Unfortunately, this encoding tends not to converge toward the optimal solution quickly, and the obvious drawback is the extra decoding effort.
 
-**Integers in binary.** With $L$ bits, an unsigned integer covers $[0, 2^{L}-1]$. For signed values, pick a convention: sign-magnitude, one's complement, two's complement (range $[-2^{L-1}, 2^{L-1}-1]$, the one CPUs use), or simply an offset (store $x-x_{\min}$). Annoying detail: if your range is not a power of 2, some bit patterns are invalid and need a repair.
+**d. Integers in binary**
+* With a number of bits that we'll call $L$, you can represent $[0, 2^{L}-1]$ on an unsigned integer. A not-so-minor flaw: if the genome's decision bound is not a power of two, some modifications (crossover/mutations) can produce numbers outside the range, which then have to be repaired (yes, the genome has its limits, which we sometimes discover by making mistakes).
+* Other problems arise with signed values. Here are the options you may run into:
+    * sign-magnitude,
+    * one's complement,
+    * two's complement, range $[-2^{L-1}, 2^{L-1}-1]$, the one your CPU uses (so probably the one you want),
+    * or simply an offset: store $x-x_{\min}$ and stop thinking.
 
-**BCD** (binary-coded decimal) puts each decimal digit on 4 bits: 1234 is `0001 0010 0011 0100`. Exact decimals, but codes `1010` to `1111` are invalid and operators will produce them. Rarely worth it.
 
----
+**e. BCD (binary-coded decimal)**
+Each decimal digit gets its own 4 bits: 1234, for example, is `0001 0010 0011 0100`. However, the bit patterns `1010` through `1111` are invalid, and that's exactly what GA operations can produce. Personally, this isn't an encoding I'll reach for often. I list it here because it exists, but I strongly advise against it.
 
 ### 2. Number Encoding
 **a. Integer encoding**
-
-Each gene is an integer, stored as is (no bits).
+As I said above, each chromosome is a number. In this section, unlike binary encoding, we have real numbers. Admittedly, the jump is quite tricky: I struggled myself to move from my two-dimensional, black-and-white way of thinking to this one... (sometimes I still don't think I've fully understood it-)
+In the LaTeX description below, we're simply saying that G (the genome) is an array of entries $x_n$ that belong to the domain $\mathbb{Z}$, the integers.
 
 $$G=[x_1,x_2,\ldots,x_n],\quad x_i\in\mathbb{Z},\quad l_i \leq x_i \leq u_i$$
-
-Mutation:
-- *Random reset*: draw another valid value.
-- *Creep*: add or subtract a small step.
-- *Uniform*: draw anywhere in $[l_i,u_i]$.
-
-Crossover: single-point, two-point and uniform work as is. Arithmetic or blend crossover need a rounding step:
+* In this setup, the allowed mutation operators are the following:
+    * *Random reset*: draw another valid value.
+    * *Creep*: add or subtract a small step. Slow and steady.
+    * *Uniform*: draw anywhere in $[l_i,u_i]$. From my experience, I advise against it as the main mutation. It mutates to a new number with no dependence on the previous value, which I observed on one of my personal projects, where the damage got worse as the population converged (going from roughly 40-55 periods to 173).
+* Crossover: single-point, two-point and uniform work as is (see III. Crossover).
+* Arithmetic or blend crossover need a rounding step, because half an integer is not an integer:
 
 $$C=\text{round}\big(\alpha P_1+(1-\alpha)P_2\big),\quad \alpha\in[0,1]$$
 
-The rounded child can still break a constraint of the problem (an odd number where only even ones are valid, for example).
+* Careful: the rounded child can still break a constraint of the problem (an odd number where only even ones are valid, for example).
 
 > **In goth-mommy**: `int(min, max)`. After crossover or mutation, `fit()` rounds and clamps the value. A mutation always moves an integer by at least ±1 (`intStep`): without it, a small Gaussian noise rounds to 0 and the gene never changes.
 
----
-
 **b. Real-valued encoding**
-
-Genes are real numbers, for continuous variables (coefficients, ratios, dimensions, temperatures, speeds, setpoints...). No decoding: the gene is the variable.
+Here, the chromosome is encoded with real values (coefficients, ratios, dimensions, temperatures, etc.). This gives us the following domain of definition:
 
 $$G=[x_1,x_2,\ldots,x_n],\quad x_i\in\mathbb{R},\quad l_i \leq x_i \leq u_i$$
 
-Crossover:
-- Arithmetic crossover: $C=\alpha P_1+(1-\alpha)P_2$.
-- BLX-α (Blend crossover): the child is drawn uniformly in $[\min(p_1,p_2)-\alpha d,\ \max(p_1,p_2)+\alpha d]$ with $d=|p_1-p_2|$.
-- SBX (Simulated Binary Crossover): imitates the spread of a single-point binary crossover on real values.
-- Single-point, two-point and uniform crossover.
-
-Arithmetic, BLX-α and SBX create new values between or around the parents. Single-point, two-point and uniform crossovers only swap existing values, so they never create a new one.
-
-Mutation:
-- Gaussian mutation: $x' = x + \mathcal{N}(0,\sigma^2)$.
-- Uniform mutation within the bounds.
-- Polynomial mutation (usually paired with SBX).
-- Non-uniform mutation (amplitude decreasing over generations).
-
-Two things bite in practice. A mutation can leave the bounds, so you clamp, reflect or repair. And $\sigma$ depends on the scale of each variable: one $\sigma$ for a gene in $[0,1]$ and a gene in $[0,10^4]$ does not work.
+* The crossovers allowed here are slightly different:
+    * Arithmetic crossover: $C=\alpha P_1+(1-\alpha)P_2$.
+    * BLX-α (Blend crossover): the child is drawn uniformly in $[\min(p_1,p_2)-\alpha d,\ \max(p_1,p_2)+\alpha d]$ with $d=|p_1-p_2|$.
+    * SBX (Simulated Binary Crossover): imitates the spread of a single-point binary crossover on real values.
+    * Single-point, two-point and uniform crossover.
+* Note that arithmetic, BLX-α and SBX create new values between or around the parents. Single-point, two-point and uniform crossovers only swap existing values, so they never create a new one.
+* Mutation:
+    * Gaussian mutation: $x' = x + \mathcal{N}(0,\sigma^2)$.
+    * Uniform mutation within the bounds.
+    * Polynomial mutation (usually paired with SBX).
+    * Non-uniform mutation (amplitude decreasing over generations).
+* Two things bite in practice:
+    * A mutation can leave the bounds, so you clamp, reflect or repair.
+    * $\sigma$ depends on the scale of each variable: one $\sigma$ for a gene in $[0,1]$ and a gene in $[0,10^4]$ does not work. One size fits nobody.
 
 > **In goth-mommy**: `real(min, max)`, unbounded by default. Two mutators: `gaussian({ sigma })` and `perturb({ strength })`. `perturb` draws a uniform noise whose amplitude goes from ±`strength` down to ±`strength`/1000, so the same mutator makes large jumps and fine adjustments near the optimum. `arithmetic()` is the crossover that creates new real values.
 >
 > In future, maybe we change it
 
----
-
 **c. Floating-point encoding**
-
-This is how real-valued genes are stored in practice: IEEE 754 numbers, `float32` (about 7 significant digits) or `float64` (about 15-16). A JavaScript `number` is a `float64`.
+This is how real-valued genes are stored in practice. Welcome to the real world, devs.
+* IEEE 754 numbers: `float32` (about 7 significant digits) or `float64` (about 15-16). A JavaScript `number` is a `float64`.
 
 $$x = (-1)^{s}\times 1.m \times 2^{e-\text{bias}}$$
 
-Operators are those of 2.b. What changes is the rounding: `0.1 + 0.2 !== 0.3`. In a GA, this matters for equality constraints (use a tolerance), for fitness comparisons between nearly equal individuals, and for `NaN` or `Infinity` produced by the fitness function (a `NaN` score breaks any comparison-based selection).
-
----
+* Operators are those of real-valued encoding (see 2.b). What changes is the rounding: `0.1 + 0.2 !== 0.3`.
+* In a GA, this matters for:
+    * equality constraints (use a tolerance),
+    * fitness comparisons between nearly equal individuals,
+    * `NaN` or `Infinity` produced by the fitness function (a `NaN` score breaks any comparison-based selection, see I. Selection).
 
 **d. Fixed-point encoding**
-
-The value is an integer with a fixed scale $S$:
+The value is an integer with a fixed scale $S$. Decimals in disguise.
 
 $$x_{\text{real}}=\frac{x_{\text{integer}}}{S}$$
 
-With $S=100$ (two decimals), 12.34 is stored as 1234. With a signed integer of $L$ bits, the range is $\left[\frac{-2^{L-1}}{S}, \frac{2^{L-1}-1}{S}\right]$.
-
-Operators are those of integer encoding (2.a), or bitwise operators on the stored integer.
-
-Useful on microcontrollers without a floating-point unit, or when every machine must give exactly the same result. Otherwise, floating-point is simpler. Watch out for overflow.
-
----
+* With $S=100$ (two decimals), 12.34 is stored as 1234.
+* With a signed integer of $L$ bits, the range is $\left[\frac{-2^{L-1}}{S}, \frac{2^{L-1}-1}{S}\right]$.
+* Operators are those of integer encoding (see 2.a), or bitwise operators on the stored integer.
+* When to use it: on microcontrollers without a floating-point unit, or when every machine must give exactly the same result. Otherwise, floating-point is much simpler. From my projects, though, I can tell you one thing if you use it: watch out for overflow.
 
 **e. Mixed-integer encoding**
-
-A single chromosome mixes integer and real genes, for problems with both discrete and continuous decisions (how many machines, and at what speed).
+A single chromosome mixes integer and real genes, for problems with both discrete and continuous decisions (how many machines, and at what speed). It's the best of both worlds, but it also brings the problems of both worlds, and they're even more complicated than when each was on its own (if you want to spend great evenings reading about problems you don't understand and wanting to bite your screen just to get the functions to compile, this is the best encoding to start with!).
 
 $$G=[x_1,x_2,x_3,x_4],\quad x_1\in\mathbb{Z},\quad x_2\in\mathbb{R},\quad x_3\in\mathbb{Z},\quad x_4\in\mathbb{R}$$
 
-Each gene is mutated according to its type: $x'_1=x_1+\delta$ with $\delta\in\mathbb{Z}$, $x'_2=x_2+\epsilon$ with $\epsilon\in\mathbb{R}$. A mutation can turn $[8,\ 75.5,\ 24,\ 120.75]$ into $[9,\ 76.2,\ 24,\ 118.4]$: the integers stay integers.
-
-Crossover works per type too: SBX or arithmetic on the reals, a discrete crossover on the integers. Single-point, two-point and uniform crossover work on every type.
-
-The hard part is not the encoding, it is the dependencies between genes: if $x_1$ is the number of machines and $x_2,x_3,\ldots$ their speeds, changing $x_1$ changes the meaning of the rest. That needs a repair step or a variable-length encoding (section 5).
+* Each gene is mutated according to its type: $x'_1=x_1+\delta$ with $\delta\in\mathbb{Z}$, $x'_2=x_2+\epsilon$ with $\epsilon\in\mathbb{R}$.
+    * A mutation can turn $[8,\ 75.5,\ 24,\ 120.75]$ into $[9,\ 76.2,\ 24,\ 118.4]$: the integers stay integers.
+* Crossover works per type too: SBX or arithmetic on the reals, a discrete crossover on the integers. Single-point, two-point and uniform crossover work on every type.
+* Encoding the genes is easy; what makes it very difficult to me is the dependencies between them:
+    * if $x_1$ is the number of machines and $x_2,x_3,\ldots$ their speeds, changing $x_1$ changes the meaning of the rest.
+    * That needs a repair step or a variable-length encoding (see 5. String and Sequence Encoding). Fire a machine, and its speed becomes a ghost gene.
 
 > **In goth-mommy**: this is the main encoding. An individual is a `HyperParams` object, and the `Space` gives each key its type: `real`, `int`, `bool` or `choice`. Without a `Space`, it is inferred from the seed (number = unbounded real, boolean = bool, string = constant). `mutateGenes` adds noise to `real` and `int` genes, and flips `bool` and `choice` genes with probability `flipRate`. `arithmetic()` mixes numeric genes and takes each other gene from either parent, by coin flip.
 
