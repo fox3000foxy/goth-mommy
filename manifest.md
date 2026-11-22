@@ -666,7 +666,7 @@ The big design choice: what is one individual?
 * **Michigan**: one individual is one rule. The population *is* the rule set. This is learning classifier systems (XCS).
 
 **c. XCS and the "don't care" symbol**
-* XCS conditions use the ternary alphabet $\{0,1,\#\}$, where $\#$ is "don't care". The most relatable gene ever written.
+* XCS conditions use the ternary alphabet $\{0,1,\text{#}\}$, where $\text{#}$ is "don't care". The most relatable gene ever written.
 * `01#1 : 10` matches `0101` and `0111` and fires action `10`.
 * Mutation flips a condition symbol or the action.
 
@@ -830,6 +830,375 @@ This is the classic method, found in most introductory implementations. It appli
 
 > **In goth-mommy**: no single-point brick. A `HyperParams` individual is a key-value map with no meaningful gene order, so cutting at an index $k$ would be arbitrary. Use `uniform()` (per-gene coin flip) or `arithmetic()` (convex combination on numbers) instead. Note also that a `Crossover` in this library returns a single child per call: the engine invokes it once per free slot.
 
+**b. Two-Point Crossover**
+Same principle as single-point, but with two cut points.
+* Draw two indices $k_1<k_2$ in $[1,L-1]$. The chromosome is split into three pieces.
+* **Child 1** keeps the beginning and the end of Parent 1, and takes the middle $[k_1,k_2)$ from Parent 2. **Child 2** does the opposite.
+* Example with $k_1=2$, $k_2=5$: `11111111` × `00000000` gives `11000111` and `00111000`.
+* Why bother with a second cut? Single-point has a *positional bias*: the first and last genes are **always** separated, no matter where the cut falls. With two cuts, the chromosome can be seen as a ring, and the ends are no longer penalized. In some of my projects it was a plausible solution, but given the choice, I prefer N-point or Segmented crossover even if they are a bit more complicated.
+
+**c. N-Point Crossover**
+The generalization: $n$ sorted cut points, and you switch parent at each cut.
+* Three-point is just $n=3$. Nothing magical.
+* The larger $n$ is, the more the crossover breaks up blocks of genes that work well together (the *building blocks*). With a single cut, a block whose first and last genes are $\delta$ positions apart is cut with probability $\frac{\delta}{L-1}$. With $n$ cuts, roughly $n$ times more.
+* As $n$ approaches $L$, it gets closer to uniform crossover (see 2.a).
+* An even $n$ keeps the "ring" property of two-point. An odd $n$ keeps the end bias.
+
+**d. Segmented Crossover**
+An N-point where the number of cuts is not fixed in advance. And it's the crossover of this section that I like the most.
+* You walk along the chromosome and, at each position, switch parent with probability $s$ (the *segment switch rate*).
+* On average, this gives $s\,(L-1)$ cuts, but that number changes with each crossover.
+* A single parameter $s$ does all the tuning: small $s$ = close to single-point, $s=0.5$ = uniform.
+
+---
+
+### 2. Uniform and Mask-Based Crossover
+**a. Uniform Crossover**
+Forget the cut points: each gene is decided by a coin flip (Syswerda, 1989). It's not my favorite, but it works well on simple problems.
+* For each gene $i$, the child takes $p_{1,i}$ with probability $p_0$ (often 0.5), otherwise $p_{2,i}$. The second child takes the complement.
+* No more positional bias: two neighboring genes, or two genes at opposite ends of the chromosome, have exactly the same chance of being separated.
+* The downside is that it is the most destructive operator: on average $L/2$ swaps. Blocks of linked genes get no protection.
+* Works on any fixed-length encoding where gene $i$ has the same meaning for every individual: bits, integers, reals, categories (see II. Encoding). **Not** on permutations: duplicates are guaranteed (see 4).
+
+> **In goth-mommy**: `uniform()`. A 0.5 coin flip for each key, a single child per call. A key present only in the second parent is taken from that parent. Works with all gene types (`real`, `int`, `bool`, `choice`). Note that `GothMommy` has **no** default crossover: you must pass `crossover: uniform()` in the options. This behavior is likely to change in the future, but for now that's how it works.
+
+**b. Half Uniform Crossover (HUX)**
+Un uniforme qui ne gaspille pas ses tirages (Eshelman, 1991, dans l'algorithme CHC). C'est exactement le crossover que j'aurais choisie pour un chromosome binaire. Il est excellent dessus.
+* On ne regarde que les positions où les parents **diffèrent**. Échanger deux bits identiques ne change rien, autant ne pas compter ces positions.
+* Parmi ces $d$ positions (la distance de Hamming entre parents), on en échange exactement $d/2$, choisies au hasard.
+* Résultat : chaque enfant est à distance $d/2$ de chacun de ses parents, donc le plus loin possible des deux.
+* Dans CHC, il va avec l'*incest prevention* : deux parents trop proches (distance sous un seuil) ne se croisent pas. Par définition et comme nous ont prouvé la royauté, l'incest crée des troubles dans la population et ralonge les épisodes avant de trouver une solution optimale.
+
+**c. Shuffle Crossover**
+Le single-point sans son biais de position (Eshelman, Caruana & Schaffer, 1989).
+1. Mélanger les positions des deux parents avec **la même** permutation aléatoire.
+2. Faire un single-point crossover.
+3. Remettre les gènes à leur place avec la permutation inverse.
+* On garde la distribution du nombre d'échanges du single-point, mais n'importe quelle paire de gènes peut se retrouver séparée.
+
+**d. Mask-Based Crossover**
+La vision qui unifie tout ce qui précède : un masque binaire $m$ dit, gène par gène, de quel parent vient la valeur. Même s'il est compliqué et qu'il me fait encore quelques cauchemards; il est très performant, mais je conseille de rester simple parfois c'est mieux.
+
+$$c_i=\begin{cases}p_{1,i} & \text{si } m_i=1\\ p_{2,i} & \text{si } m_i=0\end{cases}$$
+
+* Masque aléatoire à 0.5 : crossover uniforme. Masque en blocs `1110001111` : two-point. Un seul changement : single-point.
+* Le deuxième enfant utilise le masque inversé $1-m$.
+* Le *fixed mask* est un cas à part : le masque est fixé par le problème, pas tiré au hasard, par exemple pour garder ensemble des gènes qu'on sait liés.
+
+---
+
+### 3. Arithmetic and Numerical Crossover
+These crossovers are specialized for numerical values. So we no longer just swap values: we **create** new ones. Notation: $x$ and $y$ are the parents, $z$ is the child, $d_i=|x_i-y_i|$.
+
+**a. Arithmetic Crossover**
+The weighted average, over all genes. It's very simple to implement, but, as said below, in my projects the populations tended to concentrate around a central point, and only a high mutation rate moved the population toward a different pole, at the risk of degrading optimal convergence and getting stuck in a local minimum. This is why I advise against it depending on the environment and the problem.
+
+$$z=\alpha x+(1-\alpha)y,\qquad \alpha\in[0,1]$$
+
+* $\alpha=0.5$: the exact midpoint (*intermediate*). Random $\alpha$: an arbitrary point on the segment between the parents.
+* The second child swaps the roles: $z'=(1-\alpha)x+\alpha y$.
+* One $\alpha$ per gene instead of a single one for the whole vector: the child lands anywhere in the box formed by the parents, not just on the diagonal.
+* The flaw to know about: the child is always **between** its parents. Generation after generation, the population contracts toward its center. If mutation doesn't compensate, diversity melts away.
+* On integers, you need to round (see II.2.a).
+
+> **In goth-mommy**: `arithmetic()`. A single random $\alpha$ per child, shared by all numeric genes. `fit()` rounds and clamps `int` and bounded `real` genes. `bool` and `choice` genes are taken from one parent by coin flip.
+
+**b. Simple Arithmetic Crossover**
+A mix of single-point and arithmetic (Michalewicz).
+* Draw a position $k$. Genes before $k$ are copied from $x$, genes from $k$ onward are blended: $z_i=\alpha y_i+(1-\alpha)x_i$.
+
+Unfortunately I'm not used to using it, so I have no further comments on this one and the next.
+
+**c. Single Arithmetic Crossover**
+Even gentler: a single randomly drawn gene $k$ is blended. All the others are copied from $x$.
+* Useful when variables are highly dependent and you want to move only one dimension at a time.
+
+**d. Extended Arithmetic Crossover**
+The answer to the contraction in 3.a: we let the child leave the segment. This is the answer to the problem I described above, if you remember, but mutation must be kept low, otherwise we end up in the same situation as described above (monstrosities straight out of Chernobyl).
+* $\alpha\in[-e,\,1+e]$ instead of $[0,1]$. With $e=0.25$ (Mühlenbein & Schlierkamp-Voosen, 1993), the population variance stays roughly stable.
+* One $\alpha$ per gene: *extended intermediate recombination*. A single $\alpha$ for the whole vector: *extended line recombination*.
+* It can go out of bounds: clamp or repair.
+
+**e. Linear Crossover**
+Three children, keep the best two (Wright, 1991):
+
+$$\frac{x+y}{2},\qquad \frac{3x-y}{2},\qquad \frac{-x+3y}{2}$$
+
+* The midpoint, plus two extrapolations on either side.
+* Cost: three evaluations for two kept children. If the fitness is expensive, it hurts. I already tried it in the trading-model project but quickly preferred to migrate to another one.
+
+**f. Flat Crossover**
+Each gene drawn uniformly between the two parents (Radcliffe, 1991): $z_i\sim U[\min(x_i,y_i),\ \max(x_i,y_i)]$.
+* This is BLX-0.0. Same contraction problem as 3.a.
+
+**g. Blend Crossover (BLX-α)** (= BLX-α Crossover)
+Flat crossover with some margin (Eshelman & Schaffer, 1993):
+
+$$z_i\sim U\big[\min(x_i,y_i)-\alpha d_i,\ \max(x_i,y_i)+\alpha d_i\big]$$
+
+* $\alpha=0.5$ is the classic value: roughly as much chance of contracting as of expanding.
+* When the parents get closer, $d_i$ shrinks and so does exploration. The search tightens by itself at the end of a run.
+* If I remember correctly, look at II.2, I already talked about it.
+
+**h. BLX-αβ Crossover**
+BLX, but asymmetric (Herrera et al.).
+* You need to know the best parent. On the best parent's side, extend by $\alpha d_i$; on the worse parent's side, by $\beta d_i$, with $\alpha>\beta$.
+* Children are therefore drawn preferentially on the best parent's side. Personally it reminds me a lot of a shaky divorce situation.
+
+**i. Simulated Binary Crossover (SBX)**
+Imitates, on reals, the spread of a binary single-point crossover (Deb & Agrawal, 1995). Draw $u\sim U(0,1)$:
+
+$$\beta=\begin{cases}(2u)^{\frac{1}{\eta+1}} & \text{if } u\leq 0.5\\[4pt] \left(\dfrac{1}{2(1-u)}\right)^{\frac{1}{\eta+1}} & \text{otherwise}\end{cases}$$
+
+$$z_1=\tfrac12\big[(1+\beta)x+(1-\beta)y\big],\qquad z_2=\tfrac12\big[(1-\beta)x+(1+\beta)y\big]$$
+
+* $\eta$ (the distribution index) controls the spread: large $\eta$ (20 and above) = children stuck close to the parents, small $\eta$ (2) = children far away.
+* The mean of the two children is that of the parents.
+* The spread is proportional to the distance between the parents: dispersed population, big steps; converged population, small steps. Adaptive with no extra parameter.
+* The standard of multi-objective algorithms (NSGA-II, see I.9), almost always with polynomial mutation. A bounded version exists to respect $[l_i,u_i]$. It's the crossover I'm currently using for the trading-model; I can't yet measure good results with it, but it has reduced a lot of problems around the project, so I can only recommend it for complex problems.
+
+**j. UNDX** (Unimodal Normal Distribution Crossover)
+Three parents or more (Ono & Kobayashi, 1997).
+* Children are drawn around the midpoint $m$ of two parents, following a normal distribution elongated along the line joining them ($\xi\sim\mathcal N(0,\sigma_\xi^2)$), plus an orthogonal noise ($\eta_k\sim\mathcal N(0,\sigma_\eta^2)$) proportional to the distance $D$ of the third parent from that line:
+
+$$z=m+\xi\,(x-y)+D\sum_{k}\eta_k\,e_k$$
+
+* The $e_k$ are an orthogonal basis to $x-y$. Suggested values: $\sigma_\xi=0.5$, $\sigma_\eta=0.35/\sqrt n$.
+* Rotation-invariant: it doesn't assume the variables are independent. Good on non-separable functions, where gene-by-gene operators struggle.
+
+**k. Parent-Centric Crossover (PCX)**
+Unfortunately I lack perspective on this crossover and the next three to give a critical opinion on the subject, but if you want, you can try asking Claude, who will be able to answer better than me at this moment.
+The cousin of UNDX, centered on a parent instead of the center (Deb, Anand & Joshi, 2002).
+* Take $\mu$ parents (often 3) and their centroid $g$. For a chosen parent $x^{(p)}$, the child is drawn around $x^{(p)}$, more stretched in the direction $x^{(p)}-g$ and a little in the orthogonal directions.
+* Assumption: the parents are already in good regions, so searching near them is more profitable than searching in the middle.
+* Goes with the G3 model (Generalized Generation Gap) in the original paper.
+
+**l. Heuristic Crossover** (Wright's numerical version)
+The only one in the list that looks at fitness (Wright, 1991). With $x$ the best parent:
+
+$$z=x+r\,(x-y),\qquad r\sim U[0,1]$$
+
+* We extrapolate in the "worst to best" direction. Strongly exploitative.
+* If $z$ goes out of bounds, we redraw $r$ a few times, then give up and copy the parents.
+* Not to be confused with the heuristic crossover for the TSP.
+
+**m. Direction-Based Crossover**
+Same idea as the previous crossover: the child is placed in an improvement direction estimated from the parents (from the worse toward the better), at a random step. Depending on the papers, it is either the heuristic crossover renamed or a variant with a differently tuned step. DE pushes this logic further with vector differences.
+
+**n. Geometric Crossover**
+Two meanings depending on who is talking:
+* *Michalewicz*: the geometric mean, $z_i=\sqrt{x_i y_i}$ (or $x_i^{\alpha}y_i^{1-\alpha}$). Reserved for positive variables, designed for constraints of the type $\prod_i x_i\geq c$: if both parents satisfy the constraint, so does the child.
+* *Moraglio & Poli*: a theoretical framework. A crossover is "geometric" if the child is always on the segment between its parents, with respect to a given distance. Uniform (Hamming), arithmetic (Euclidean) and PMX (with the right distance) are special cases.
+I admit I don't really know which of the two is the most relevant in this section, so to be safe I'd rather you consider them as two different implementations.
+
+**o. Laplace Crossover**
+At the beginning of the trading-model project I was able to try implementing Laplace; it gave promising results, but I had to migrate to others to see which could give the best possible result.
+SBX, but with a Laplace distribution (Deep & Thakur, 2007). Draw $u,r\sim U(0,1)$:
+
+$$\beta=\begin{cases}a-b\ln u & \text{if } r\leq\frac12\\ a+b\ln u & \text{otherwise}\end{cases},\qquad z_1=x+\beta\,|x-y|,\quad z_2=y+\beta\,|x-y|$$
+
+* $a$ is the location (often 0), $b>0$ the scale: small $b$ = children close to the parents.
+* Heavier tails than a normal: every now and then, a big jump.
+
+**p. Fuzzy Recombination**
+Each gene is drawn from a triangular distribution centered on the value of one of the parents, with a width proportional to $d_i$ (Voigt, Mühlenbein & Cvetković, 1995).
+* Children stay **close to the parents**, not in the middle.
+
+**q. Differential Evolution Crossover** (= Differential Crossover)
+In differential evolution (DE, Storn & Price, 1997), the crossover comes after a "mutation" that combines three individuals:
+
+$$v=x_{r_1}+F\,(x_{r_2}-x_{r_3}),\qquad F\in[0.4,1]$$
+
+* Then the crossover mixes the target $x_i$ and this *mutant* $v$ to produce a *trial* $u$. If $u$ is better than $x_i$, it replaces it.
+* The strategy name is written `DE/base/number of differences/crossover`, for example `DE/rand/1/bin`.
+* The step $F\,(x_{r_2}-x_{r_3})$ adapts by itself to the spread of the population, like SBX.
+* The multi-objective version (GDE3 and co.) is covered in section 13.
+
+**r. DE Binomial Crossover**
+The `bin` in `DE/rand/1/bin`. Gene by gene:
+
+$$u_j=\begin{cases}v_j & \text{if } \text{rand}_j\leq CR \text{ or } j=j_{\text{rand}}\\ x_{i,j} & \text{otherwise}\end{cases}$$
+
+* A uniform crossover (see 2.a) with a rate $CR$, and a guarantee: position $j_{\text{rand}}$ always comes from the mutant, so that $u\neq x_i$.
+* Small $CR$ (0.1): good for separable problems. Large $CR$ (0.9): good for linked variables.
+
+**s. DE Exponential Crossover**
+The `exp`. A **contiguous** block of the mutant is copied:
+* Start at a random position $j$, copy $v_j$, then keep going as long as $\text{rand}<CR$ (and at most $L$ genes), wrapping around to the start if needed.
+* A two-point crossover on a ring (see 1.b), with a geometric block length.
+
+**t. DE Current-to-Best**
+A DE mutation strategy, `DE/current-to-best/1`:
+
+$$v=x_i+F\,(x_{\text{best}}-x_i)+F\,(x_{r_1}-x_{r_2})$$
+
+* Each individual is pulled toward the best, plus a random perturbation. Converges fast, at the risk of converging too early.
+* JADE (Zhang & Sanderson, 2009) softens this with *current-to-pbest*: the "best" is drawn from among the top $p\%$.
+
+**u. DE Best-to-Rand**
+The name varies, the classic version is `DE/rand-to-best/1`:
+
+$$v=x_{r_1}+F\,(x_{\text{best}}-x_{r_1})+F\,(x_{r_2}-x_{r_3})$$
+
+* Random base, attracted toward the best. A compromise between `DE/rand/1` (exploration) and `DE/best/1` (exploitation).
+* A remark valid for 3.t and 3.u: in DE, these formulas are called "mutations". The crossover proper remains `bin` or `exp`.
+
+---Ces crossover sont spécialisés sur les valeurs numériques. Alors, on ne se contente plus d'échanger des valeurs : on en **crée** de nouvelles. Notation : $x$ et $y$ les parents, $z$ l'enfant, $d_i=|x_i-y_i|$.
+
+**a. Arithmetic Crossover**
+La moyenne pondérée, sur tous les gènes. C'est très simple à implémenter, mais cependant, comme dit plus bas, dans mes projets les populations avaient tendances à se concentrer en un point central, et seul un taux de mutation élevé faisait bougé la population vers un pole différent, au risque de réduire la convergence optimale et rester bloqué dans un minimum local. Ce pourquoi je la déconseille en fonction des environnement et des problèmes.
+
+$$z=\alpha x+(1-\alpha)y,\qquad \alpha\in[0,1]$$
+
+* $\alpha=0.5$ : le milieu exact (*intermediate*). $\alpha$ tiré au hasard : un point quelconque du segment entre les parents.
+* Le deuxième enfant échange les rôles : $z'=(1-\alpha)x+\alpha y$.
+* Un $\alpha$ par gène au lieu d'un seul pour tout le vecteur : l'enfant tombe n'importe où dans la boîte formée par les parents, pas seulement sur la diagonale.
+* Le défaut à connaître : l'enfant est toujours **entre** ses parents. Génération après génération, la population se contracte vers son centre. Si la mutation ne compense pas, la diversité fond.
+* Sur des entiers, il faut arrondir (voir II.2.a).
+
+> **In goth-mommy**: `arithmetic()`. Un seul $\alpha$ aléatoire par enfant, partagé par tous les gènes numériques. `fit()` arrondit et borne les `int` et les `real` bornés. Les gènes `bool` et `choice` sont pris chez un parent à pile ou face.
+
+**b. Simple Arithmetic Crossover**
+Un mélange de single-point et d'arithmétique (Michalewicz).
+* Tirer une position $k$. Les gènes avant $k$ sont copiés de $x$, les gènes à partir de $k$ sont mélangés : $z_i=\alpha y_i+(1-\alpha)x_i$.
+
+Malheureusement je n'ai pas l'habitude de l'utiliser donc je n'ai pas plus de commentaire à faire sur celui ci et le prochain
+
+**c. Single Arithmetic Crossover**
+Encore plus doux : un seul gène $k$, tiré au hasard, est mélangé. Tous les autres sont copiés de $x$.
+* Utile quand les variables sont très dépendantes et qu'on veut bouger une seule dimension à la fois.
+
+**d. Extended Arithmetic Crossover**
+La réponse à la contraction du 3.a : on laisse l'enfant sortir du segment. C'est la réponse au problème que j'ai énoncé plus haut si vous vous souvenez bien, mais il faut garder une mutation faible sinon on se retrouve dans la même situation décrite plus haut (des monstruosité venu tout droit de tchernobyl)
+* $\alpha\in[-e,\,1+e]$ au lieu de $[0,1]$. Avec $e=0.25$ (Mühlenbein & Schlierkamp-Voosen, 1993), la variance de la population reste à peu près stable.
+* Un $\alpha$ par gène : *extended intermediate recombination*. Un seul $\alpha$ pour tout le vecteur : *extended line recombination*.
+* Ça peut sortir des bornes : borner ou réparer.
+
+**e. Linear Crossover**
+Trois enfants, on garde les deux meilleurs (Wright, 1991) :
+
+$$\frac{x+y}{2},\qquad \frac{3x-y}{2},\qquad \frac{-x+3y}{2}$$
+
+* Le milieu, plus deux extrapolations de chaque côté.
+* Coût : trois évaluations pour deux enfants gardés. Si la fitness est chère, ça pique. J'ai déjà essayé dans le projet de trading-model mais j'ai préféré migrer vers un autre très rapidement
+
+**f. Flat Crossover**
+Chaque gène tiré uniformément entre les deux parents (Radcliffe, 1991) : $z_i\sim U[\min(x_i,y_i),\ \max(x_i,y_i)]$.
+* C'est BLX-0.0. Même problème de contraction que 3.a.
+
+**g. Blend Crossover (BLX-α)** (= BLX-α Crossover)
+Le flat crossover avec de la marge (Eshelman & Schaffer, 1993) :
+
+$$z_i\sim U\big[\min(x_i,y_i)-\alpha d_i,\ \max(x_i,y_i)+\alpha d_i\big]$$
+
+* $\alpha=0.5$ est la valeur classique : à peu près autant de chances de contracter que d'étendre.
+* Quand les parents se rapprochent, $d_i$ diminue et l'exploration aussi. La recherche se resserre toute seule en fin de run.
+* Si je me souviens bien, regarder dans le II.2 j'en avais déjà parlé
+
+**h. BLX-αβ Crossover**
+BLX, mais asymétrique (Herrera et al.).
+* Il faut connaître le meilleur parent. Côté meilleur parent, on étend de $\alpha d_i$ ; côté moins bon, de $\beta d_i$, avec $\alpha>\beta$.
+* Les enfants sont donc tirés plutôt du côté du meilleur. Personnellement ça me fait extrêmement penser à un problème de divorse bancale -
+
+**i. Simulated Binary Crossover (SBX)**
+Imite sur des réels l'étalement d'un single-point binaire (Deb & Agrawal, 1995). Tirer $u\sim U(0,1)$ :
+
+$$\beta=\begin{cases}(2u)^{\frac{1}{\eta+1}} & \text{si } u\leq 0.5\\[4pt] \left(\dfrac{1}{2(1-u)}\right)^{\frac{1}{\eta+1}} & \text{sinon}\end{cases}$$
+
+$$z_1=\tfrac12\big[(1+\beta)x+(1-\beta)y\big],\qquad z_2=\tfrac12\big[(1-\beta)x+(1+\beta)y\big]$$
+
+* $\eta$ (l'indice de distribution) règle l'écart : grand $\eta$ (20 et plus) = enfants collés aux parents, petit $\eta$ (2) = enfants éloignés.
+* La moyenne des deux enfants est celle des parents.
+* L'écart est proportionnel à la distance entre parents : population dispersée, grands pas ; population convergée, petits pas. Adaptatif sans paramètre de plus.
+* Le standard des algos multiobjectifs (NSGA-II, voir I.9), presque toujours avec une mutation polynomiale. Une version bornée existe pour respecter $[l_i,u_i]$. C'est le crossover que j'utilise actuellement pour le trading-model; Je n'arrive pas à mesurer encore de bons résultats avec, mais il a réduit beaucoup de problème autour du projet donc je ne peux que le conseiller sur des problèmes complexes.
+
+**j. UNDX** (Unimodal Normal Distribution Crossover)
+Trois parents ou plus (Ono & Kobayashi, 1997).
+* Les enfants sont tirés autour du milieu $m$ de deux parents, selon une loi normale allongée sur la droite qui les relie ($\xi\sim\mathcal N(0,\sigma_\xi^2)$), plus un bruit orthogonal ($\eta_k\sim\mathcal N(0,\sigma_\eta^2)$) proportionnel à la distance $D$ du troisième parent à cette droite :
+
+$$z=m+\xi\,(x-y)+D\sum_{k}\eta_k\,e_k$$
+
+* Les $e_k$ sont une base orthogonale à $x-y$. Valeurs proposées : $\sigma_\xi=0.5$, $\sigma_\eta=0.35/\sqrt n$.
+* Invariant par rotation : il ne suppose pas que les variables sont indépendantes. Bon sur les fonctions non séparables, là où les opérateurs gène par gène peinent.
+
+**k. Parent-Centric Crossover (PCX)**
+Malheureusement je manque de recul sur ce crossover et les trois prochains pour donner un avi critique au sujet, mais si vous voulez vous pouver essayer de demander à claude qui saura mieux répondre que moi à cet instant-
+Le cousin de UNDX, centré sur un parent au lieu du centre (Deb, Anand & Joshi, 2002).
+* On prend $\mu$ parents (souvent 3) et leur centre de gravité $g$. Pour un parent $x^{(p)}$ choisi, l'enfant est tiré autour de $x^{(p)}$, plus étiré dans la direction $x^{(p)}-g$ et un peu dans les directions orthogonales.
+* Hypothèse : les parents sont déjà dans de bonnes régions, donc chercher près d'eux est plus rentable que chercher au milieu.
+* Va avec le modèle G3 (Generalized Generation Gap) dans l'article d'origine.
+
+**l. Heuristic Crossover** (version Wright, numérique)
+Le seul de la liste qui regarde la fitness (Wright, 1991). Avec $x$ le meilleur parent :
+
+$$z=x+r\,(x-y),\qquad r\sim U[0,1]$$
+
+* On extrapole dans la direction "du pire vers le meilleur". Exploite fort.
+* Si $z$ sort des bornes, on retire $r$ quelques fois, puis on abandonne et on copie les parents.
+* À ne pas confondre avec le heuristic crossover pour le TSP.
+
+**m. Direction-Based Crossover**
+Même idée que le crossover d'avant : l'enfant est placé dans une direction d'amélioration estimée à partir des parents (du moins bon vers le meilleur), à un pas aléatoire. Selon les articles, il s'agit du heuristic crossover renommé ou d'une variante avec un pas réglé différemment. Le DE pousse cette logique plus loin avec des différences de vecteurs.
+
+**n. Geometric Crossover**
+Deux sens selon qui en parle :
+* *Michalewicz* : la moyenne géométrique, $z_i=\sqrt{x_i y_i}$ (ou $x_i^{\alpha}y_i^{1-\alpha}$). Réservé aux variables positives, pensé pour des contraintes du type $\prod_i x_i\geq c$ : si les deux parents respectent la contrainte, l'enfant aussi.
+* *Moraglio & Poli* : un cadre théorique. Un crossover est "géométrique" si l'enfant est toujours dans le segment entre ses parents, au sens d'une distance donnée. Uniforme (Hamming), arithmétique (euclidienne) et PMX (avec la bonne distance) en sont des cas particuliers.
+J'avoue que je ne sais pas vraiment qui des deux est le plus pertinent dans cette section, donc pour être prudent je préfère que vous le considériez comme deux implémentation différentes.
+
+**o. Laplace Crossover**
+Au début du projet trading-model j'ai pu essayé d'implémenter Laplace il y avait donné des résultats prometteur mais j'ai du migrer vers d'autres pour voir lesquels pourraient donner le meilleur résultat possible.
+SBX, mais avec une loi de Laplace (Deep & Thakur, 2007). Tirer $u,r\sim U(0,1)$ :
+
+$$\beta=\begin{cases}a-b\ln u & \text{si } r\leq\frac12\\ a+b\ln u & \text{sinon}\end{cases},\qquad z_1=x+\beta\,|x-y|,\quad z_2=y+\beta\,|x-y|$$
+
+* $a$ est la position (souvent 0), $b>0$ l'échelle : petit $b$ = enfants proches des parents.
+* Queues plus lourdes qu'une normale : de temps en temps, un grand saut.
+
+**p. Fuzzy Recombination**
+Chaque gène est tiré dans une distribution triangulaire centrée sur la valeur d'un des parents, de largeur proportionnelle à $d_i$ (Voigt, Mühlenbein & Cvetković, 1995).
+* Les enfants restent **près des parents**, pas au milieu.
+
+**q. Differential Evolution Crossover** (= Differential Crossover)
+Dans l'évolution différentielle (DE, Storn & Price, 1997), le crossover arrive après une "mutation" qui combine trois individus :
+
+$$v=x_{r_1}+F\,(x_{r_2}-x_{r_3}),\qquad F\in[0.4,1]$$
+
+* Puis le crossover mélange la cible $x_i$ et ce *mutant* $v$ pour donner un *essai* $u$. Si $u$ est meilleur que $x_i$, il le remplace.
+* Le nom de la stratégie s'écrit `DE/base/nombre de différences/crossover`, par exemple `DE/rand/1/bin`.
+* Le pas $F\,(x_{r_2}-x_{r_3})$ s'adapte tout seul à l'étalement de la population, comme SBX.
+* La version multiobjectif (GDE3 et compagnie) est traitée en section 13.
+
+**r. DE Binomial Crossover**
+Le `bin` de `DE/rand/1/bin`. Gène par gène :
+
+$$u_j=\begin{cases}v_j & \text{si } \text{rand}_j\leq CR \text{ ou } j=j_{\text{rand}}\\ x_{i,j} & \text{sinon}\end{cases}$$
+
+* Un crossover uniforme (voir 2.a) avec un taux $CR$, et une garantie : la position $j_{\text{rand}}$ vient toujours du mutant, pour que $u\neq x_i$.
+* $CR$ petit (0.1) : bon pour les problèmes séparables. $CR$ grand (0.9) : bon pour les variables liées.
+
+**s. DE Exponential Crossover**
+Le `exp`. On copie un bloc **contigu** du mutant :
+* Partir d'une position aléatoire $j$, copier $v_j$, puis continuer tant que $\text{rand}<CR$ (et au plus $L$ gènes), en revenant au début si besoin.
+* Un two-point crossover sur un anneau (voir 1.b), avec une longueur de bloc géométrique.
+
+**t. DE Current-to-Best**
+Une stratégie de mutation DE, `DE/current-to-best/1` :
+
+$$v=x_i+F\,(x_{\text{best}}-x_i)+F\,(x_{r_1}-x_{r_2})$$
+
+* Chaque individu est tiré vers le meilleur, plus une perturbation aléatoire. Converge vite, au risque de converger trop tôt.
+* JADE (Zhang & Sanderson, 2009) adoucit ça avec *current-to-pbest* : le "meilleur" est tiré parmi les $p\%$ meilleurs.
+
+**u. DE Best-to-Rand**
+Le nom varie, la version classique est `DE/rand-to-best/1` :
+
+$$v=x_{r_1}+F\,(x_{\text{best}}-x_{r_1})+F\,(x_{r_2}-x_{r_3})$$
+
+* Base aléatoire, attirée vers le meilleur. Un compromis entre `DE/rand/1` (exploration) et `DE/best/1` (exploitation).
+* Remarque valable pour 3.t et 3.u : en DE, ces formules sont appelées "mutations". Le crossover proprement dit reste `bin` ou `exp`.
+
+---
 
 IV. Mutation 
 V. Fitness
