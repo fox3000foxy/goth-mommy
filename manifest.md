@@ -666,7 +666,7 @@ The big design choice: what is one individual?
 * **Michigan**: one individual is one rule. The population *is* the rule set. This is learning classifier systems (XCS).
 
 **c. XCS and the "don't care" symbol**
-* XCS conditions use the ternary alphabet $\{0,1,\text{#}\}$, where $\text{#}$ is "don't care". The most relatable gene ever written.
+* XCS conditions use the ternary alphabet $\{0,1,{\mathop{\\#}}\}$, where ${\mathop{\\#}}$ is "don't care". The most relatable gene ever written.
 * `01#1 : 10` matches `0101` and `0111` and fires action `10`.
 * Mutation flips a condition symbol or the action.
 
