@@ -398,72 +398,129 @@ $$G=[x_1,x_2,x_3,x_4],\quad x_1\in\mathbb{Z},\quad x_2\in\mathbb{R},\quad x_3\in
 ---
 
 ### 3. Permutation Encoding
-
-When the answer is an *order* (a tour, a schedule, a sequence of tasks), the chromosome is a permutation: every element appears exactly once.
+**a. Plain permutation**
+When the answer is an *order* (a tour, a schedule, a sequence of tasks, and not a McDonald's order), the chromosome is a permutation: every element appears exactly once. Once. Not twice.
 
 $$G=[x_1,x_2,\ldots,x_n]\in S_n,\qquad |S_n| = n!$$
 
-Example for 5 cities: $[3,1,4,5,2]$.
-
-The first thing you learn is that classical crossovers break it. Single-point crossover after position 2 of $[1,2,3,4,5]$ and $[3,1,4,5,2]$ gives $[1,2,4,5,2]$: 2 twice, 3 gone. So permutations come with their own operators.
-
-Crossovers: PMX (partially mapped), OX (order), CX (cycle), ERX (edge recombination), plus position-based, order-based and alternating-position variants. Mutations: swap, insertion, inversion, scramble, displacement. All of them return a valid permutation.
+* Example for 5 cities: $[3,1,4,5,2]$.
+* The first thing you learn is that classical crossovers break it (see III. Crossover). Single-point crossover after position 2 of $[1,2,3,4,5]$ and $[3,1,4,5,2]$ gives $[1,2,4,5,2]$: 2 twice, 3 gone.
+* So permutations come with their own operators:
+    * Crossovers: PMX (partially mapped), OX (order), CX (cycle), ERX (edge recombination), plus position-based, order-based and alternating-position variants.
+    * Mutations: swap, insertion, inversion, scramble, displacement.
+    * All of them return a valid permutation.
 
 > **In goth-mommy**: `GothMommyPermutation` evolves permutations of `0..size-1`. Crossovers: `ox()` (default, keeps the relative order) and `pmx()` (keeps the positions). Mutations: `swap()` (default) and `inversion()`. Every operator returns a valid permutation, so no repair is needed.
 >
 > We have some trust issue in this code isn't it ?
 
-The search space is $n!$: 20 cities is already $2.4\times 10^{18}$ tours.
+* The search space is $n!$: 20 cities is already $2.4\times 10^{18}$ tours. Brute force? Sure, Sam Altman will have his AGI before you get your result (or, take your pick, before your graphics card melts).
 
-There are other ways to store an order, each trading something:
-
-**Ordinal (Lehmer code).** For each position, count the smaller elements to its right. $[3,1,4,5,2]$ gives $[2,0,1,1,0]$ (3 has 1 and 2 on its right, 1 has nothing smaller, and so on). It is close to, but not the same as, the *inversion table* (Knuth), which counts for each value the larger elements on its left: the two are linked by the inverse permutation.
-
-To decode, start from $L=[1,2,3,4,5]$ and, for each code $c_i$, take out the element at index $c_i$ (from 0): 3, 1, 4, 5, 2.
-
-Gene $i$ (counted from 1) lives in $[0, n-i]$, so for five elements: $c_1\in[0,4]$, $c_2\in[0,3]$, $c_3\in[0,2]$, $c_4\in[0,1]$, $c_5=0$. The nice part: genes never move, so single-point, two-point and uniform crossover always produce a valid permutation. The bad part: heritability is poor, because changing $c_i$ changes the meaning of every gene after it. Children of ordinal crossovers can look nothing like their parents.
+**b. Ordinal (Lehmer code)**
+Up there, I said that each element of a permutation appears only once in the DNA. With this encoding, we change paradigm: for each position, you count all the elements smaller than it on its right. Yeah, it looks like Knuth's, but no, it's a lookalike (Knuth's, as a reminder, counts all the larger values on its left).
+* So $[3,1,4,5,2]$ gives $[2,0,1,1,0]$ (3 has 1 and 2 on its right, 1 has nothing smaller, and so on).
+* Decoding is a bit tricky at first, but you get used to it (it's like riding a bike, or like the first times you debug a recursive function): start from $L=[1,2,3,4,5]$ and, for each code $c_i$, take out the element at index $c_i$ (from 0): 3, 1, 4, 5, 2.
+* Gene $i$ (counted from 1) lives in $[0, n-i]$, so for five elements: $c_1\in[0,4]$, $c_2\in[0,3]$, $c_3\in[0,2]$, $c_4\in[0,1]$, $c_5=0$.
+* Since genes never move, single-point, two-point and uniform crossover always produce a valid permutation.
+* Heritability suffers, though: changing $c_i$ changes the meaning of every gene after it. Children of ordinal crossovers can look nothing like their parents. (Fortunately, parents don't cry betrayal as soon as they see their children. My bad, digression over, back to the topic.)
 
 > [!CAUTION]
 > Any operator that moves a gene to another position, or that changes its value (mutation, arithmetic crossover without rounding), must keep $c_i$ in $[0, n-i]$, otherwise the code is invalid.
 
-**Ranking.** Gene $i$ is the rank of element $i$, which is the inverse of the permutation above. $[A,B,C,D,E]$ with $[3,1,5,2,4]$ reads $B\prec D\prec A\prec E\prec C$. Permutation operators work as long as ranks stay unique; allow ties and you are doing priority encoding (section 12). Not to be confused with rank-based *selection*, which ranks individuals, not genes.
+**c. Ranking**
+Gene $i$ is the rank of element $i$, which is the inverse of the permutation above.
+* $[A,B,C,D,E]$ with $[3,1,5,2,4]$ reads $B\prec D\prec A\prec E\prec C$.
+* Permutation operators work as long as ranks stay unique; allow ties and you are doing priority encoding (section 12).
+* Not to be confused with rank-based *selection* (see I. Selection), which ranks individuals, not genes.
+Unfortunately, I don't have much experience with this encoding or the next one, so I can only refer to the documentation I found.
 
-**Random keys.** One real key per element, usually in $[0,1)$; sort the indices by key to get the order. $[0.42,\ 0.07,\ 0.91,\ 0.33,\ 0.65]$ sorts as $0.07\,(2), 0.33\,(4), 0.42\,(1), 0.65\,(5), 0.91\,(3)$, so the permutation is $[2,4,1,5,3]$. Here is the trick: *every* vector decodes to a valid permutation. Any real-valued operator works with no repair, and keys mix easily with other real genes. This is the basis of BRKGA (Biased Random-Key GA). The cost is a sort per decode ($O(n\log n)$), a tie-breaking rule for equal keys, and a lot of redundancy (infinitely many vectors give the same order).
+**d. Random keys**
+One real key per element, usually in $[0,1)$; sort the indices by key to get the order.
+* $[0.42,\ 0.07,\ 0.91,\ 0.33,\ 0.65]$ sorts as $0.07\,(2), 0.33\,(4), 0.42\,(1), 0.65\,(5), 0.91\,(3)$, so the permutation is $[2,4,1,5,3]$.
+* Whatever the values, *every* vector decodes to a valid permutation. Any real-valued operator works with no repair, and keys mix easily with other real genes.
+* This is the basis of BRKGA (Biased Random-Key GA).
+* In return, you pay for:
+    * a sort per decode ($O(n\log n)$),
+    * a tie-breaking rule for equal keys,
+    * and a lot of redundancy (infinitely many vectors give the same order).
 
 ---
 
 ### 4. Symbolic Encoding
 
-Genes taken from a finite alphabet $\Sigma$ of symbols instead of numbers: $G=[s_1,\ldots,s_n]$, $s_i\in\Sigma$.
+If numbers are too easy for you, well, let me introduce symbolic encodings. Here the genes come from an alphabet $\Sigma$ of symbols: $G=[s_1,\ldots,s_n]$, $s_i\in\Sigma$. Just before we start, I hope you have some painkillers in stock, because this quickly turns into a headache.
 
-The textbook case is **characters**: evolve `"HELLO WORLD"` from random strings over printable ASCII. Classical crossovers work (no duplicate constraint), mutation replaces a character by another one from $\Sigma$. Restrict the alphabet when the problem does: letters only, or $\{A,C,G,T\}$ for DNA. The weakness is that characters have no distance: `A` is not closer to `B` than to `Z` as far as the problem is concerned, and the space grows as $|\Sigma|^n$.
+**a. Characters**
+This is the simplest and most accessible of the family (if you also want to write the "hello world" of a GA, now is the time; the gene itself allows it).
+The more abstract question is what this encoding is for. And you're absolutely right to ask: it has mainly been used in NLP, text generation, automatic programming, circuit design, bioinformatics, planning, and many other fields. This encoding covers a huge number of domains, and I personally used this kind of encoding for the beginnings of a basic conversational bot with one of my colleagues. (I admit it was a project I was proud of: a bot that answers according to the context you give it, so basic, obviously... Then ChatGPT came along, I just raged, stewed in my bitterness, and went back to my APIs, okay...)
+* The classic crossover methods work (it's easier when you don't have the no-duplicates constraint from above). Single-point and its relatives are really chill here.
+* Mutation replaces a character by another one from $\Sigma$.
+* Restrict the alphabet when the problem does:
+    * letters only,
+    * or $\{A,C,G,T\}$ for DNA. Four letters, all of biology. Show-off.
+* It has two limits:
+    * characters have no distance: `A` is not closer to `B` than to `Z` as far as the problem is concerned. Alphabetical order means nothing here, sorry kindergarten teachers.
+    * the space grows as $|\Sigma|^n$.
 
-**Categorical** genes are the same idea with one set of options per gene, and no order inside a set:
+**b. Categorical genes**
+Same idea, but each gene gets its own set of options, and there is no order inside a set. This is what I was talking about for NLP, for example when choosing grammatical categories.
 
 $$G=[c_1,\ldots,c_n],\quad c_i\in C_i$$
 
-Example: $[\text{steel},\ \text{round},\ \text{supplier B}]$ with $C_1=\{\text{steel},\text{aluminium},\text{wood}\}$, $C_2=\{\text{round},\text{square}\}$, $C_3=\{\text{A},\text{B},\text{C}\}$. Categories are often stored as integer indices, but never treat these indices as numbers: no arithmetic crossover, no creep mutation. Only swap values between parents and reset within $C_i$. Watch out for combinations that make no sense together (repair or penalty). This is what optimizer or activation-function choices look like in hyperparameter search.
+* Categories are often stored as integer indices. But **never** treat these indices as numbers:
+    * no arithmetic crossover,
+    * no creep mutation.
+    * Averaging "steel" and "wood" does not give you "aluminium", devs. I see you trying.
+* Only swap values between parents and reset within $C_i$.
+* Some combinations make no sense together: repair them or penalize them. This is what I personally struggled with the most when using this kind of encoding.
+* This is what optimizer or activation-function choices look like in hyperparameter search.
 
 > **In goth-mommy**: `choice(values)`. With probability `flipRate`, mutation picks another value from the list (never the current one). `bool()` is the two-value case.
 
-**Meaningful symbols** (functions, variables, constants, instructions) turn a linear chromosome into a program. $[+,\ x,\ \times,\ 3,\ y]$ can be decoded as $x+3\times y$. Gene Expression Programming (GEP) splits the chromosome into a *head* (functions and terminals) and a *tail* (terminals only), which guarantees that every chromosome decodes to a valid expression. Mutation must replace a function by a function and a terminal by a terminal.
+**c. Meaningful symbols**
+Functions, variables, constants, instructions. Line them up and the linear chromosome becomes a program. Yes, yes: circuit design and automatic programming.
+* $[+,\ x,\ \times,\ 3,\ y]$ can be decoded as $x+3\times y$.
+* Gene Expression Programming (GEP) splits the chromosome into:
+    * a *head* (functions and terminals),
+    * a *tail* (terminals only).
+    * This guarantees that every chromosome decodes to a valid expression.
+* Mutation must replace a function by a function and a terminal by a terminal.
 
 ---
 
 ### 5. String and Sequence Encoding
+**a. Strings and sequences**
+The big family. Binary was just its little cousin all along.
+* A string over $\Sigma$ ($G = s_1 s_2 \ldots s_n$) is the general form. Binary and character encodings are just special cases (see 1. Binary encoding).
+* A *sequence* adds two things a permutation won't give you (see 3. Permutation Encoding):
+    * order matters,
+    * elements can repeat.
+* Example: robot moves $[\text{UP},\ \text{LEFT},\ \text{LEFT},\ \text{DOWN}]$. You evaluate them by running them. (And if you want a cool school project, here we are. Myself I was doing on budget app... Far away yes i know.)
 
-A string over $\Sigma$ ($G = s_1 s_2 \ldots s_n$) is the general form; binary and character encodings are special cases. A *sequence* adds that order matters and elements can repeat, unlike a permutation: robot moves $[\text{UP},\ \text{LEFT},\ \text{LEFT},\ \text{DOWN}]$ are evaluated by running them.
+**b. Fixed length**
+What really splits this family is the length. Yes, size matters here, that's she's never admit it.
+* Every chromosome has $n$ genes, and gene $i$ always means the same thing.
+* Classical operators apply directly (see III. Crossover). Nothing to adapt. Boring, but it works.
 
-What really splits this family is the length.
-
-- **Fixed length**: every chromosome has $n$ genes, and gene $i$ always means the same thing. Classical operators apply directly.
-- **Variable length**: $n_G$ changes between individuals and over time. You need *cut-and-splice* crossover (a different cut point in each parent, so children have different lengths), insertion and deletion mutations, segment duplication. You do not have to know the size of the solution in advance, which is the whole point. But chromosomes tend to grow without getting better (*bloat*), so set a length limit or a length penalty from day one. Aligning genes between parents also gets hard.
+**c. Variable length**
+Unlike above, $n_G$ changes between individuals and over time. Things get spicy. (Have you had some coffeeeeeeeee? I think I'm drinking too much.)
+* You need dedicated operators:
+    * *cut-and-splice* crossover: a different cut point in each parent, so children have different lengths (ahah sister, finally an explanation for my superiority),
+    * insertion and deletion mutations,
+    * segment duplication.
+* You no longer need to know the size of the solution in advance. That's the whole point. (And I like it.)
+* Two problems come with it:
+    * chromosomes tend to grow without getting better (*bloat*). Set a length limit or a length penalty from day one, not "later".
+    * aligning genes between parents also gets hard. Like teenagers. Crazy, isn't it?
 
 ---
 
 ### 6. Tree Encoding
-
-Genetic programming (Koza) evolves trees. Internal nodes come from a function set $F$, leaves from a terminal set $T$ (variables, constants). $(x+3)\times\sin(y)$ is:
+**a. Programs as trees**
+We don't evolve numbers, we evolve trees. And forests will come for your bad code with claude code.
+* Internal nodes come from a function set $F$.
+* Leaves come from a terminal set $T$ (variables, constants).
+* Example: $(x+3)\times\sin(y)$ is:
 
 ```
         ×
@@ -473,23 +530,43 @@ Genetic programming (Koza) evolves trees. Internal nodes come from a function se
     x   3    y
 ```
 
-and is evaluated by a recursive walk. When the tree follows a grammar (each internal node a rule, each leaf a token), it is a *parse tree* and every program is syntactically valid by construction.
+* It is evaluated by a recursive walk.
+* When the tree follows a grammar (each internal node a rule, each leaf a token), it is a *parse tree*, and every program is syntactically valid by construction. No syntax errors, ever.
 
-Two requirements:
-- **Closure**: every function accepts whatever any function or terminal returns. Hence "protected division", $x/0=1$.
-- **Sufficiency**: $F$ and $T$ can express a solution at all.
+**b. Two requirements**
+* **Closure**: every function accepts whatever any function or terminal returns. Hence "protected division", $x/0=1$.
+* **Sufficiency**: $F$ and $T$ can express a solution at all. No `+` in your set? No sum in your answer. Shocking, I know.
 
-Initialization is usually *ramped half-and-half*: half the trees *full* (every branch at max depth), half *grow* (random depths), over a range of depths.
+**c. Initialization**
+Usually *ramped half-and-half*, over a range of depths:
+* half the trees are *full*: every branch reaches max depth,
+* half are *grow*: random depths.
 
-Operators: subtree crossover (swap two random subtrees), subtree mutation (replace one by a new random subtree), point mutation (same-arity node swap), hoist (keep only a subtree), shrink (replace a subtree by a terminal).
+**d. Operators**
+The usual suspects, tree edition (see III. Crossover):
+* **subtree crossover**: swap two random subtrees between parents,
+* **subtree mutation**: replace one subtree by a new random subtree,
+* **point mutation**: swap a node for another of the same arity,
+* **hoist**: keep only a subtree,
+* **shrink**: replace a subtree by a terminal.
 
-You get optimized structure, not just parameters, and a formula you can read at the end. You also get bloat (depth limits and parsimony pressure are mandatory), slower evaluation than a vector, and fragile roots: a small change near the root changes everything below.
+**e. Pros and cons**
+* What you gain:
+    * You optimize structure, not just parameters.
+    * You get a formula you can read at the end.
+* What it costs:
+    * Bloat. Depth limits and parsimony pressure are mandatory, not optional.
+    * Slower evaluation than a vector.
+    * Fragile roots: a small change near the root changes everything below.
+    * Lot of coffee/monster (see you naughty boi) to implement and understand it
 
 ---
 
 ### 7. Graph Encoding
 
-For a graph $\mathcal{G}=(V,E)$, the question is just how to store it.
+**a. Storing the graph**
+You have a graph $\mathcal{G}=(V,E)$. Cute. Now the only real question: how do you store it?
+Five options, each with its own baggage. Pick the one whose "Bad" column you can live with.
 
 | Storage | Chromosome | Good | Bad |
 | :------ | :--------- | :--- | :-- |
@@ -499,88 +576,168 @@ For a graph $\mathcal{G}=(V,E)$, the question is just how to store it.
 | Nodes | one label per node, e.g. colors $c_i\in\{1,\ldots,k\}$ | direct for coloring, clustering | says nothing about edges |
 | Path | nodes visited from source to target, $[s,\ 4,\ 7,\ 2,\ t]$ | direct for routing | consecutive pairs must be edges; cross at a shared node, repair the rest |
 
+* Adjacency matrix: fixed length, so the binary operators (see 1. Binary encoding and III. Crossover) just work. Then crossover happily snaps your connectivity in half. Devs, you were warned.
+* Path: great for routing. Consecutive pairs must be edges, so cross at a shared node and repair the rest.
+
+**b. Prüfer code**
 For spanning trees, the **Prüfer code** is worth knowing: $n-2$ genes in $[1,n]$, and every chromosome decodes to a valid tree.
+* No repair, no invalid offspring.
 
 ---
 
 ### 8. Matrix Encoding
+**a. The idea**
+Your problem has two indices? Don't squash them, keep them.
+* Think task × machine, source × destination, pixel rows × columns.
+* The chromosome is an $m\times n$ matrix $M=(x_{ij})$. Two dimensions, zero flattening, everyone's happy.
 
-When the problem has two indices (task × machine, source × destination, pixel rows × columns), keep them: the chromosome is an $m\times n$ matrix $M=(x_{ij})$.
+**b. Why bother: the operators**
+The operators are what make it worth it.
+* Swap whole rows or columns between parents.
+* Or swap a rectangular block between parents (see III. Crossover).
+* Flattening and using classical operators works too, but loses the 2D neighborhood. You flattened it, you broke it, devs.
 
-The operators are what make it worth it: swap whole rows or columns, or a rectangular block, between parents. Flattening and using classical operators works too, but loses the 2D neighborhood.
-
-The cells can be:
-- **bits**: $x_{ij}=1$ if task $i$ goes to machine $j$, or black-and-white pixels. Constraints like "exactly one 1 per row" break as soon as you cross, so plan specific operators or a repair;
-- **reals**: a neural network weight matrix, transport quantities from $i$ to $j$. Real-valued operators apply cell by cell;
-- **a permutation matrix**: exactly one 1 per row and per column. It is just a permutation stored in $n^2$ cells instead of $n$, so use section 3 instead.
+**c. What goes in the cells**
+* **Bits**: $x_{ij}=1$ if task $i$ goes to machine $j$, or black-and-white pixels.
+    * Constraints like "exactly one 1 per row" break as soon as you cross. Plan specific operators or a repair.
+* **Reals**: a neural network weight matrix, transport quantities from $i$ to $j$.
+    * Real-valued operators apply cell by cell. Nothing fancy.
+* **A permutation matrix**: exactly one 1 per row and per column.
+    * It is just a permutation stored in $n^2$ cells instead of $n$. So use section 3 instead (see 3. Permutation Encoding), and give your RAM a break.
 
 ---
 
 ### 9. Set Encoding
+**a. Why sets**
+Sometimes only membership matters.
+* Typical cases:
+    * which items go in the knapsack,
+    * which features the model uses,
+    * where to build facilities.
+* Order is noise here. Store it anyway and you get useless duplicates: same set, different orders, the GA wasting its time on clones.
 
-Sometimes only membership matters: which items go in the knapsack, which features the model uses, where to build facilities. Order is noise here, and storing it creates useless duplicates.
+**b. Set operators**
+A **set** $G=\{e_1,\ldots,e_k\}\subseteq U$ needs set operators. Your trusty single-point crossover (see III. Crossover) won't cut it here.
+* Crossover: keep $P_1\cap P_2$ in the child, then fill up from $P_1\cup P_2$ to the required size.
+* Mutation: add, remove or replace an element.
 
-A **set** $G=\{e_1,\ldots,e_k\}\subseteq U$ needs set operators: keep $P_1\cap P_2$ in the child, fill up from $P_1\cup P_2$ to the required size; mutate by adding, removing or replacing an element.
+**c. Subsets and multisets**
+How you actually store the thing:
+* A **subset** of $n$ items:
+    * usually a bit vector (bit $i$ = item $i$ is in) (see II.1),
+    * or a list of $k$ indices without duplicates, if $k$ is fixed.
+* A **multiset** (repeats allowed) is a count vector $[m_1,\ldots,m_n]$, $m_i\in\mathbb{N}$. So really integer encoding wearing a set costume (see II.2).
 
-A **subset** of $n$ items is usually a bit vector (bit $i$ = item $i$ is in), or a list of $k$ indices without duplicates if $k$ is fixed. A **multiset** (repeats allowed) is a count vector $[m_1,\ldots,m_n]$, $m_i\in\mathbb{N}$, so really integer encoding.
-
-Capacity constraints (the knapsack weight) are the usual pain: repair or penalty.
+**d. Constraints**
+Capacity constraints (the knapsack weight) are the usual pain.
+* Two ways out: repair or penalty. Pick one.
 
 ---
 
 ### 10. Vector Encoding
 
-Not really a separate encoding. A fixed-length vector $G=[x_1,\ldots,x_n]$ where gene $i$ always means the same thing is what most of the above already is: bits (section 1), reals (2.b), integers (2.a), or a mix (2.e).
+Not really a separate encoding.
+* A fixed-length vector $G=[x_1,\ldots,x_n]$ where gene $i$ always means the same thing.
+* That's what most of the above already is:
+    * bits (section 1),
+    * reals (2.b),
+    * integers (2.a),
+    * or a mix (2.e).
 
 ---
 
 ### 11. Rule-based Encoding
-
-The chromosome holds rules like
+**a. The rules**
+Your chromosome stops being data and starts giving orders. It holds rules like:
 
 $$\text{IF } \text{condition}_1 \land \text{condition}_2 \land \ldots \text{ THEN } \text{conclusion}$$
 
-for example `IF temperature > 30 AND humidity < 40 THEN irrigate`. For each attribute, the genes say whether it is tested and against which value or interval.
+* Example: `IF temperature > 30 AND humidity < 40 THEN irrigate`. Yes, your GA is now a gardener.
+* For each attribute, the genes say:
+    * whether it is tested at all,
+    * and against which value or interval.
 
-The big design choice is what one individual is:
-- **Pittsburgh**: a whole rule set. Fitness judges the set, crossover swaps whole rules, and the number of rules varies.
-- **Michigan**: one rule. The population *is* the rule set. This is learning classifier systems (XCS).
+**b. Pittsburgh vs Michigan**
+The big design choice: what is one individual?
+* **Pittsburgh**: one individual is a whole rule set.
+    * Fitness judges the set.
+    * Crossover (see III. Crossover) swaps whole rules.
+    * The number of rules varies.
+* **Michigan**: one individual is one rule. The population *is* the rule set. This is learning classifier systems (XCS).
 
-XCS conditions use the ternary alphabet $\{0,1,\#\}$, where $\#$ is "don't care": `01#1 : 10` matches `0101` and `0111` and fires action `10`. Mutation flips a condition symbol or the action.
+**c. XCS and the "don't care" symbol**
+* XCS conditions use the ternary alphabet $\{0,1,\#\}$, where $\#$ is "don't care". The most relatable gene ever written.
+* `01#1 : 10` matches `0101` and `0111` and fires action `10`.
+* Mutation flips a condition symbol or the action.
 
-The result is readable, which is rare: a human can check each rule. Expect conflicting and redundant rules, and costly fitness (every rule set is evaluated on the whole dataset).
+**d. Strengths and limits**
+* The result is readable, which is rare. A human can check each rule. Cherish it, the tree and graph folks would kill for that.
+* On the other side:
+    * expect conflicting and redundant rules,
+    * and costly fitness: every rule set is evaluated on the whole dataset.
 
 ---
 
 ### 12. Specialized Encoding
+Real problems rarely use a pure encoding.
+Most of these reuse one from above with a dedicated decoder.
 
-Real problems rarely use a pure encoding. Most of these reuse one from above with a dedicated decoder.
+**a. Scheduling**
+Pick how you want to tell time:
+* Store start times directly.
+* Store a sequence of operations.
+* Store one dispatching rule (SPT, EDD...) per step.
+* Or store a *priority* per task and let a decoder always schedule the highest available one first. That is close to random keys. Lazy and smart, my favorite combo.
 
-**Scheduling.** You can store start times directly, a sequence of operations, or one dispatching rule (SPT, EDD...) per step. Or store a *priority* per task and let a decoder always schedule the highest available one first. That is close to random keys.
+**b. Job-shop**
+A permutation with repetitions. Yes, repetitions. Relax, it's on purpose.
+* Each job $j$ appears $m$ times (one per machine).
+* The $k$-th occurrence of $j$ is its $k$-th operation.
+* With 3 jobs and 2 machines: $[1,2,1,3,2,3]$.
+* Every chromosome decodes to a feasible schedule, as long as crossovers keep exactly $m$ copies of each job. Lose one and your factory loses a job. Devs, count your copies.
 
-**Job-shop** uses a permutation with repetitions: each job $j$ appears $m$ times (one per machine), and the $k$-th occurrence of $j$ is its $k$-th operation. With 3 jobs and 2 machines, $[1,2,1,3,2,3]$. Every chromosome decodes to a feasible schedule, as long as crossovers keep exactly $m$ copies of each job.
+**c. Assignment**
+* $a_i\in\{1,\ldots,m\}$ is the machine, worker or vehicle given to task $i$.
+* Several tasks can share one.
+* If it is one-to-one, it is a permutation.
 
-**Assignment**: $a_i\in\{1,\ldots,m\}$ is the machine, worker or vehicle given to task $i$. Several tasks can share one; if it is one-to-one, it is a permutation.
+**d. Routing**
+The traveling salesman never stops traveling, so here we go:
+* *TSP*: almost always the path representation (the permutation in visiting order). There are alternatives too:
+    * the adjacency form (gene $i$ = the city after $i$),
+    * the ordinal one (Lehmer code).
+* *VRP*: two options:
+    * customers with depot separators ($[3,1,0,4,2,0,5]$),
+    * or a *giant tour* without separators that a decoder cuts into routes. One big road trip, chopped up later.
 
-**Routing.**
-- *TSP*: almost always the path representation (the permutation in visiting order). There is also the adjacency form (gene $i$ = the city after $i$) and the ordinal one (Lehmer code).
-- *VRP*: customers with depot separators ($[3,1,0,4,2,0,5]$), or a *giant tour* without separators that a decoder cuts into routes.
+**e. Resource allocation**
+You have $R$ to spend, no more, no less: $\sum_i x_i = R$, $x_i\geq 0$.
+* After each operator, renormalize ($x_i \leftarrow R\cdot x_i/\sum_j x_j$) or repair.
 
-**Resource allocation**: $\sum_i x_i = R$, $x_i\geq 0$. After each operator, renormalize ($x_i \leftarrow R\cdot x_i/\sum_j x_j$) or repair.
+**f. Partitions**
+Split $n$ elements into $k$ groups.
+* *Group numbers* ($g_i$ = group of $i$): simple but redundant. Renaming the groups gives $k!$ chromosomes for the same partition.
+* Falkenauer's *grouping* encoding works on whole groups instead.
 
-**Partitions** of $n$ elements into $k$ groups. *Group numbers* ($g_i$ = group of $i$) are simple but redundant: renaming the groups gives $k!$ chromosomes for the same partition. Falkenauer's *grouping* encoding works on whole groups instead.
+**g. Boolean functions**
+* A truth table: $2^n$ bits for $n$ inputs. Grows fast.
+* Or an expression tree of `AND`, `OR`, `NOT`, `XOR`, which stays compact when $n$ grows.
 
-**Boolean functions**: a truth table ($2^n$ bits for $n$ inputs), or an expression tree of `AND`, `OR`, `NOT`, `XOR`, which stays compact when $n$ grows.
+**h. Neural networks (neuroevolution)**
+* *Weights only*: the architecture is fixed and the chromosome is every weight and bias, flattened.
+    * Pro: real-valued operators just work.
+    * Con: chromosomes are huge.
+    * Con: the *permutation problem*. Two networks computing the same thing with hidden neurons in a different order make crossover destructive. Same brain, scrambled wiring, baby is a mess.
+* *Architecture*: layers, neurons, connections, activations.
+    * NEAT stores node genes and connection genes.
+    * It gives each connection an *innovation number* so crossover can line up the genes of two different topologies.
 
-**Neural networks** (neuroevolution):
-- *Weights only*: the architecture is fixed and the chromosome is every weight and bias, flattened. Real-valued operators just work, but chromosomes are huge. There is also the *permutation problem*: two networks computing the same thing with hidden neurons in a different order make crossover destructive.
-- *Architecture*: layers, neurons, connections, activations. NEAT stores node genes and connection genes, and gives each connection an *innovation number* so crossover can line up the genes of two different topologies.
-
-**Hyperparameters** are a mixed vector (2.e):
+**i. Hyperparameters**
+A mixed vector (2.e):
 
 $$[\text{learning rate} \in [10^{-5},10^{-1}]\ (\text{real, log scale}),\ \text{layers} \in [1,8]\ (\text{integer}),\ \text{activation} \in \{\text{relu},\text{tanh}\}\ (\text{categorical})]$$
 
-Wide ranges like the learning rate belong on a log scale.
+* Wide ranges like the learning rate belong on a log scale.
 
 > **In goth-mommy**: this is what `GothMommy` is built for (see 2.e). There is no log-scale gene: evolve the exponent instead, e.g. `real(-5, -1)`, and use `10 ** x` in the scoring function.
 >
@@ -589,33 +746,75 @@ Wide ranges like the learning rate belong on a log scale.
 ---
 
 ### 13. Indirect / Generative Encoding
+> **In goth-mommy**: We will thinks about it but i don't see advantage to implement this encoding family. Maybe in future ? I don't know realy.
+**a. The idea: a recipe, not a dish**
+Everything so far is *direct*: the chromosome is the solution. What you see is what you get.
+Here, the genotype is a recipe, and a construction process builds the solution (the phenotype) from it.
+* A short recipe can describe something huge and regular, because a rule can be reused many times.
+* Repetition, symmetry and modules come for free.
+* Two drawbacks:
+    * a tiny change in the recipe can change the result completely. Swap one line in grandma's recipe and the cake becomes soup;
+    * decoding can be slow. Go grab a coffee, devs.
 
-Everything so far is *direct*: the chromosome is the solution. Here, the genotype is a recipe, and a construction process builds the solution (the phenotype) from it. A short recipe can describe something huge and regular, because a rule can be reused many times: repetition, symmetry and modules come for free. The price is that a tiny change in the recipe can change the result completely, and decoding can be slow.
+**b. Developmental**
+Grow the phenotype from a seed (one cell), like an embryo. Yes, we're doing biology now. Stay with me.
+* Apply division and differentiation rules over several steps.
+* *Cellular encoding* (Gruau) is the classic: a tree of cell instructions (divide in sequence, divide in parallel, change a weight...) that grows a neural network. A network that literally grows up. They're so fast at that age.
 
-The main families:
-- **Developmental**: grow the phenotype from a seed (one cell) by applying division and differentiation rules over several steps, like an embryo. *Cellular encoding* (Gruau) is the classic: a tree of cell instructions (divide in sequence, divide in parallel, change a weight...) that grows a neural network.
-- **Grammatical Evolution**: the chromosome is a vector of integers (*codons*) choosing productions of a BNF grammar. At each step the leftmost non-terminal is expanded with rule $= \text{codon} \bmod \text{number of choices}$. With `<e> ::= <e>+<e> | <e>*<e> | x | 1`, codon 6 gives $6 \bmod 4 = 2$, so `<e>` becomes `x`. Any integer vector yields a valid program; if codons run out, wrap around or penalize.
-- **L-systems**: the genome is an axiom plus rewriting rules applied to all symbols in parallel for $k$ iterations. Axiom `F` with `F -> F[+F]F[-F]F` draws a plant after a few rounds.
-- **CPPN** (compositional pattern-producing network): a small network of functions (sine, Gaussian, sigmoid, linear...) queried at every coordinate, $\text{value} = \text{CPPN}(x, y)$. The output is a pattern full of symmetries and repetitions. Usually evolved with NEAT.
-- **HyperNEAT** queries a CPPN with the coordinates of two neurons on a geometric *substrate*, $w_{ij} = \text{CPPN}(x_i, y_i, x_j, y_j)$, and uses the output as their connection weight. A tiny CPPN can then encode a very large, regular network.
+**c. Grammatical Evolution**
+The chromosome is a vector of integers (*codons*) choosing productions of a BNF grammar. Your compiler class finally pays off.
+* At each step the leftmost non-terminal is expanded with rule $= \text{codon} \bmod \text{number of choices}$.
+* Example: with `<e> ::= <e>+<e> | <e>*<e> | x | 1`, codon 6 gives $6 \bmod 4 = 2$, so `<e>` becomes `x`.
+* Any integer vector yields a valid program.
+* If codons run out: wrap around or penalize. Your call.
+
+**d. L-systems**
+The genome is an axiom plus rewriting rules, applied to all symbols in parallel for $k$ iterations.
+* Axiom `F` with `F -> F[+F]F[-F]F` draws a plant after a few rounds. Gardening for people who never go outside.
+
+**e. CPPN (compositional pattern-producing network)**
+A small network of functions (sine, Gaussian, sigmoid, linear...) queried at every coordinate:
+* $\text{value} = \text{CPPN}(x, y)$
+* The output is a pattern full of symmetries and repetitions. Very pretty, very goth wallpaper.
+* Usually evolved with NEAT.
+
+**f. HyperNEAT**
+CPPN, but bigger ambitions.
+* It queries a CPPN with the coordinates of two neurons on a geometric *substrate*: $w_{ij} = \text{CPPN}(x_i, y_i, x_j, y_j)$.
+* The output is used as their connection weight.
+* Result: a tiny CPPN can then encode a very large, regular network. Small genome, big brain. Unlike some devs I know.
 
 ---
 
 ### 14. Hybrid Encoding
+**a. Why mix?**
+Sooner or later a problem has parts that want different encodings.
+* Flexible job-shop is the usual example:
+    * which machine does each operation (integers),
+    * and in what order (permutation with repetition, see 3. Permutation Encoding).
 
-Sooner or later a problem has parts that want different encodings. Flexible job-shop is the usual example: which machine does each operation (integers), and in what order (permutation with repetition).
-
-The simplest way is a **composite** chromosome, segments glued together, each with its own operators, applied segment by segment:
+**b. Composite chromosome**
+The simplest way. Segments glued together.
+* Each segment has its own operators, applied segment by segment:
 
 $$G = [\underbrace{x_1,\ldots,x_k}_{\text{real}} \mid \underbrace{\pi_1,\ldots,\pi_m}_{\text{permutation}} \mid \underbrace{b_1,\ldots,b_p}_{\text{binary}}]$$
 
-Other shapes:
-- **hierarchical**: upper genes switch lower genes on or off (an "active layer" gene decides whether that layer's parameters are used at all);
-- **modular**: reusable blocks defined once and called several times, like automatically defined functions (ADFs) in GP;
-- **nested**: a gene that is itself a vector, tree or permutation. In bilevel optimization, the outer chromosome picks a structure and each gene holds the parameters of one part;
-- **multi-representation**: the same solution kept in two forms (permutation and random keys), or sub-populations with different encodings that translate solutions to trade them.
+* Real part gets real operators, permutation part gets permutation operators, binary part gets bit operators (see III. Crossover).
 
-Each part gets the encoding that fits it. In exchange, you write and tune operators for every part, and the parts can combine into invalid solutions.
+**c. Other shapes**
+Glue is not the only option:
+* **Hierarchical**: upper genes switch lower genes on or off. An "active layer" gene decides whether that layer's parameters are used at all.
+* **Modular**: reusable blocks defined once and called several times, like automatically defined functions (ADFs) in GP (see 6. Tree Encoding).
+* **Nested**: a gene that is itself a vector, tree or permutation.
+    * In bilevel optimization, the outer chromosome picks a structure and each gene holds the parameters of one part.
+* **Multi-representation**:
+    * the same solution kept in two forms (permutation and random keys),
+    * or sub-populations with different encodings that translate solutions to trade them. Yes, they need an interpreter.
+
+**d. The bill**
+* Each part gets the encoding that fits it.
+* But you write and tune operators for every part.
+* And the parts can combine into invalid solutions. Each piece fine alone, together a disaster. Like a group project.
 
 ---
 
